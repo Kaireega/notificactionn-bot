@@ -1,0 +1,138 @@
+# Market Adaptive Trading Configuration
+
+# General Settings
+trading:
+  risk_percentage: 2.0
+  max_trades_per_day: 10
+  default_timeframe: M5
+  pairs:
+    - EUR_USD
+    - GBP_USD
+    - USD_JPY
+    - GBP_JPY
+    - EUR_GBP
+
+# Market Condition Detection
+market_conditions:
+  volatility_threshold: 0.0015
+  trend_strength_threshold: 0.7
+  breakout_threshold: 0.0020
+  ranging_threshold: 0.0008
+
+# Strategy Parameters by Market Condition
+strategies:
+  news_reactionary:
+    name: "News Reactionary Strategy"
+    description: "High volatility strategy for news events"
+    timeframes: [M1, M5]
+    indicators:
+      - atr_period: 14
+      - rsi_period: 14
+      - bollinger_period: 20
+      - bollinger_std: 2.5
+    entry_rules:
+      - "High ATR (> 0.002)"
+      - "RSI divergence"
+      - "Price outside Bollinger Bands"
+    risk_reward_ratio: 1.5
+    max_hold_time: 30  # minutes
+
+  reversal:
+    name: "Reversal Strategy"
+    description: "Trend reversal detection and trading"
+    timeframes: [M5, M15, H1]
+    indicators:
+      - ema_fast: 12
+      - ema_slow: 26
+      - macd_fast: 12
+      - macd_slow: 26
+      - macd_signal: 9
+      - rsi_period: 14
+    entry_rules:
+      - "EMA crossover"
+      - "MACD divergence"
+      - "RSI oversold/overbought"
+    risk_reward_ratio: 2.0
+    max_hold_time: 120  # minutes
+
+  breakout:
+    name: "Breakout Strategy"
+    description: "Price breakout from key levels"
+    timeframes: [M5, M15, H1]
+    indicators:
+      - support_resistance_period: 20
+      - volume_ma_period: 20
+      - atr_period: 14
+    entry_rules:
+      - "Price breaks above resistance"
+      - "Volume confirmation"
+      - "ATR expansion"
+    risk_reward_ratio: 2.5
+    max_hold_time: 180  # minutes
+
+  ranging:
+    name: "Ranging Strategy"
+    description: "Sideways market mean reversion"
+    timeframes: [M5, M15]
+    indicators:
+      - bollinger_period: 20
+      - bollinger_std: 2.0
+      - rsi_period: 14
+      - stoch_k_period: 14
+      - stoch_d_period: 3
+    entry_rules:
+      - "Price at Bollinger Band extremes"
+      - "RSI oversold/overbought"
+      - "Stochastic divergence"
+    risk_reward_ratio: 1.8
+    max_hold_time: 90  # minutes
+
+# Risk Management
+risk_management:
+  max_daily_loss: 5.0  # percentage
+  max_position_size: 10.0  # percentage
+  correlation_limit: 0.7
+  max_open_trades: 3
+  stop_loss_atr_multiplier: 2.0
+  trailing_stop: true
+  trailing_stop_atr_multiplier: 1.5
+
+# Notification Settings
+notifications:
+  telegram:
+    enabled: true
+    send_charts: true
+    send_analysis: true
+  email:
+    enabled: true
+    daily_summary: true
+    trade_alerts: true
+  webhook:
+    enabled: false
+    url: ""
+
+# AI Analysis
+ai_analysis:
+  model: "gpt-4"
+  max_tokens: 1000
+  temperature: 0.3
+  analysis_frequency: 300  # seconds
+  confidence_threshold: 0.7
+  include_news_sentiment: true
+  include_technical_analysis: true
+  include_market_context: true
+
+# Data Collection
+data_collection:
+  historical_days: 30
+  update_frequency: 60  # seconds
+  store_raw_data: true
+  compression: true
+  backup_frequency: 24  # hours
+
+# Performance Tracking
+performance:
+  track_metrics: true
+  save_trades: true
+  generate_reports: true
+  report_frequency: "daily" 

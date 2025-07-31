@@ -1,0 +1,32 @@
+# API Keys
+OPENAI_API_KEY=your_openai_api_key_here
+OANDA_API_KEY=your_oanda_api_key_here
+OANDA_ACCOUNT_ID=your_oanda_account_id_here
+OANDA_URL=https://api-fxpractice.oanda.com/v3
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+
+# Email Configuration
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_USERNAME=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password_here
+
+# Database
+MONGODB_URI=mongodb://localhost:27017
+REDIS_URL=redis://localhost:6379
+
+# Trading Configuration
+RISK_PERCENTAGE=2.0
+MAX_TRADES_PER_DAY=10
+DEFAULT_TIMEFRAME=M5
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/trading_bot.log
+
+# Development
+DEBUG=False
+ENVIRONMENT=production 
