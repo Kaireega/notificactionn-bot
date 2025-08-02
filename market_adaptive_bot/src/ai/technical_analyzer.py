@@ -1,399 +1,231 @@
 """
-Technical Analyzer - Calculates technical indicators for market analysis.
+Enhanced Technical Analyzer - Uses existing technical indicators from technicals/indicators.py
 """
 import numpy as np
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
+from datetime import datetime
 from decimal import Decimal
+import sys
+from pathlib import Path
 
-from ..core.models import CandleData, TechnicalIndicators
+# Add the root directory to the path to import technicals
+root_dir = Path(__file__).parent.parent.parent.parent
+sys.path.append(str(root_dir))
+
+# Try relative import first, then absolute import
+try:
+    from market_adaptive_bot.src.core.models import CandleData, TechnicalIndicators, TimeFrame
+except ImportError:
+    from market_adaptive_bot.src.core.models import CandleData, TechnicalIndicators, TimeFrame
+
+from technicals.indicators import RSI, MACD, BollingerBands, ATR, KeltnerChannels
+from technicals.patterns import apply_candle_props, set_candle_patterns
 
 
 class TechnicalAnalyzer:
-    """Calculates technical indicators from candle data."""
+    """Enhanced technical analyzer using existing technical indicators."""
     
     def __init__(self):
-        pass
+        """Initialize the technical analyzer."""
+        self.logger = None  # Will be set by parent class
     
     def calculate_indicators(self, candles: List[CandleData]) -> TechnicalIndicators:
-        """Calculate all technical indicators from candle data."""
+        """Calculate technical indicators using existing technicals/indicators.py functions."""
         if len(candles) < 20:
             return TechnicalIndicators()
         
-        # Convert to pandas DataFrame for easier calculations
-        df = self._candles_to_dataframe(candles)
-        
-        indicators = TechnicalIndicators()
-        
-        # Calculate RSI
-        indicators.rsi = self._calculate_rsi(df)
-        
-        # Calculate MACD
-        macd_data = self._calculate_macd(df)
-        indicators.macd = macd_data['macd']
-        indicators.macd_signal = macd_data['signal']
-        indicators.macd_histogram = macd_data['histogram']
-        
-        # Calculate EMAs
-        ema_data = self._calculate_emas(df)
-        indicators.ema_fast = ema_data['fast']
-        indicators.ema_slow = ema_data['slow']
-        
-        # Calculate Bollinger Bands
-        bb_data = self._calculate_bollinger_bands(df)
-        indicators.bollinger_upper = bb_data['upper']
-        indicators.bollinger_middle = bb_data['middle']
-        indicators.bollinger_lower = bb_data['lower']
-        
-        # Calculate ATR
-        indicators.atr = self._calculate_atr(df)
-        
-        # Calculate Stochastic
-        stoch_data = self._calculate_stochastic(df)
-        indicators.stoch_k = stoch_data['k']
-        indicators.stoch_d = stoch_data['d']
-        
-        # Calculate Support and Resistance
-        levels = self._calculate_support_resistance(df)
-        indicators.support_level = levels['support']
-        indicators.resistance_level = levels['resistance']
-        
-        return indicators
+        try:
+            # Convert candles to DataFrame format expected by technicals
+            df = self._candles_to_dataframe(candles)
+            
+            # Apply existing technical indicators
+            df = RSI(df, n=14)
+            df = MACD(df, n_slow=26, n_fast=12, n_signal=9)
+            df = BollingerBands(df, n=20, s=2)
+            df = ATR(df, n=14)
+            df = KeltnerChannels(df, n_ema=20, n_atr=10)
+            
+            # Apply candle properties and patterns
+            df = apply_candle_props(df)
+            df = set_candle_patterns(df)
+            
+            # Extract the latest values
+            latest = df.iloc[-1]
+            
+            # Create TechnicalIndicators object with ALL your custom indicators
+            indicators = TechnicalIndicators(
+                # RSI
+                rsi=float(latest.get('RSI_14', 0)) if pd.notna(latest.get('RSI_14')) else None,
+                rsi_14=float(latest.get('RSI_14', 0)) if pd.notna(latest.get('RSI_14')) else None,
+                
+                # MACD
+                macd=float(latest.get('MACD', 0)) if pd.notna(latest.get('MACD')) else None,
+                macd_line=float(latest.get('MACD', 0)) if pd.notna(latest.get('MACD')) else None,
+                macd_signal=float(latest.get('SIGNAL', 0)) if pd.notna(latest.get('SIGNAL')) else None,
+                macd_signal_line=float(latest.get('SIGNAL', 0)) if pd.notna(latest.get('SIGNAL')) else None,
+                macd_histogram=float(latest.get('HIST', 0)) if pd.notna(latest.get('HIST')) else None,
+                macd_histogram_line=float(latest.get('HIST', 0)) if pd.notna(latest.get('HIST')) else None,
+                
+                # Bollinger Bands
+                bollinger_upper=float(latest.get('BB_UP', 0)) if pd.notna(latest.get('BB_UP')) else None,
+                bollinger_middle=float(latest.get('BB_MA', 0)) if pd.notna(latest.get('BB_MA')) else None,
+                bb_ma=float(latest.get('BB_MA', 0)) if pd.notna(latest.get('BB_MA')) else None,
+                bollinger_lower=float(latest.get('BB_LW', 0)) if pd.notna(latest.get('BB_LW')) else None,
+                
+                # ATR
+                atr=float(latest.get('ATR_14', 0)) if pd.notna(latest.get('ATR_14')) else None,
+                
+                # Keltner Channels
+                keltner_upper=float(latest.get('KeUp', 0)) if pd.notna(latest.get('KeUp')) else None,
+                keltner_lower=float(latest.get('KeLo', 0)) if pd.notna(latest.get('KeLo')) else None,
+                keltner_middle=float(latest.get('EMA', 0)) if pd.notna(latest.get('EMA')) else None,
+                
+                # EMA (from Keltner calculation)
+                ema_fast=float(latest.get('EMA', 0)) if pd.notna(latest.get('EMA')) else None,
+                ema_slow=float(latest.get('EMA', 0)) if pd.notna(latest.get('EMA')) else None,  # Using same EMA for now
+                
+                # Support/Resistance
+                support_level=float(df['mid_l'].min()) if len(df) > 0 else None,
+                resistance_level=float(df['mid_h'].max()) if len(df) > 0 else None,
+                
+                # Stochastic (not in your custom indicators, but keeping for compatibility)
+                stoch_k=None,
+                stoch_d=None
+            )
+            
+            return indicators
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error calculating technical indicators: {e}")
+            return TechnicalIndicators()
     
     def _candles_to_dataframe(self, candles: List[CandleData]) -> pd.DataFrame:
-        """Convert candle data to pandas DataFrame."""
+        """Convert CandleData list to DataFrame format expected by technicals."""
         data = []
         for candle in candles:
             data.append({
-                'timestamp': candle.timestamp,
-                'open': float(candle.open),
-                'high': float(candle.high),
-                'low': float(candle.low),
-                'close': float(candle.close),
+                'mid_o': float(candle.open),
+                'mid_h': float(candle.high),
+                'mid_l': float(candle.low),
+                'mid_c': float(candle.close),
                 'volume': float(candle.volume) if candle.volume else 0
             })
         
         df = pd.DataFrame(data)
-        df.set_index('timestamp', inplace=True)
         return df
     
-    def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> Optional[float]:
-        """Calculate Relative Strength Index."""
-        try:
-            if len(df) < period + 1:
-                return None
-            
-            delta = df['close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-            
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs))
-            
-            return float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
-        except Exception:
-            return None
-    
-    def _calculate_macd(self, df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
-        """Calculate MACD (Moving Average Convergence Divergence)."""
-        try:
-            if len(df) < slow + signal:
-                return {'macd': None, 'signal': None, 'histogram': None}
-            
-            ema_fast = df['close'].ewm(span=fast).mean()
-            ema_slow = df['close'].ewm(span=slow).mean()
-            
-            macd_line = ema_fast - ema_slow
-            signal_line = macd_line.ewm(span=signal).mean()
-            histogram = macd_line - signal_line
-            
-            return {
-                'macd': float(macd_line.iloc[-1]) if not pd.isna(macd_line.iloc[-1]) else None,
-                'signal': float(signal_line.iloc[-1]) if not pd.isna(signal_line.iloc[-1]) else None,
-                'histogram': float(histogram.iloc[-1]) if not pd.isna(histogram.iloc[-1]) else None
-            }
-        except Exception:
-            return {'macd': None, 'signal': None, 'histogram': None}
-    
-    def _calculate_emas(self, df: pd.DataFrame, fast: int = 12, slow: int = 26) -> dict:
-        """Calculate Exponential Moving Averages."""
-        try:
-            if len(df) < slow:
-                return {'fast': None, 'slow': None}
-            
-            ema_fast = df['close'].ewm(span=fast).mean()
-            ema_slow = df['close'].ewm(span=slow).mean()
-            
-            return {
-                'fast': float(ema_fast.iloc[-1]) if not pd.isna(ema_fast.iloc[-1]) else None,
-                'slow': float(ema_slow.iloc[-1]) if not pd.isna(ema_slow.iloc[-1]) else None
-            }
-        except Exception:
-            return {'fast': None, 'slow': None}
-    
-    def _calculate_bollinger_bands(self, df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> dict:
-        """Calculate Bollinger Bands."""
-        try:
-            if len(df) < period:
-                return {'upper': None, 'middle': None, 'lower': None}
-            
-            middle = df['close'].rolling(window=period).mean()
-            std = df['close'].rolling(window=period).std()
-            
-            upper = middle + (std * std_dev)
-            lower = middle - (std * std_dev)
-            
-            return {
-                'upper': float(upper.iloc[-1]) if not pd.isna(upper.iloc[-1]) else None,
-                'middle': float(middle.iloc[-1]) if not pd.isna(middle.iloc[-1]) else None,
-                'lower': float(lower.iloc[-1]) if not pd.isna(lower.iloc[-1]) else None
-            }
-        except Exception:
-            return {'upper': None, 'middle': None, 'lower': None}
-    
-    def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> Optional[float]:
-        """Calculate Average True Range."""
-        try:
-            if len(df) < period + 1:
-                return None
-            
-            high_low = df['high'] - df['low']
-            high_close = np.abs(df['high'] - df['close'].shift())
-            low_close = np.abs(df['low'] - df['close'].shift())
-            
-            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-            atr = true_range.rolling(window=period).mean()
-            
-            return float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else None
-        except Exception:
-            return None
-    
-    def _calculate_stochastic(self, df: pd.DataFrame, k_period: int = 14, d_period: int = 3) -> dict:
-        """Calculate Stochastic Oscillator."""
-        try:
-            if len(df) < k_period + d_period:
-                return {'k': None, 'd': None}
-            
-            lowest_low = df['low'].rolling(window=k_period).min()
-            highest_high = df['high'].rolling(window=k_period).max()
-            
-            k_percent = 100 * ((df['close'] - lowest_low) / (highest_high - lowest_low))
-            d_percent = k_percent.rolling(window=d_period).mean()
-            
-            return {
-                'k': float(k_percent.iloc[-1]) if not pd.isna(k_percent.iloc[-1]) else None,
-                'd': float(d_percent.iloc[-1]) if not pd.isna(d_percent.iloc[-1]) else None
-            }
-        except Exception:
-            return {'k': None, 'd': None}
-    
-    def _calculate_support_resistance(self, df: pd.DataFrame, period: int = 20) -> dict:
-        """Calculate support and resistance levels."""
-        try:
-            if len(df) < period:
-                return {'support': None, 'resistance': None}
-            
-            recent_data = df.tail(period)
-            
-            # Find local minima and maxima
-            highs = recent_data['high'].values
-            lows = recent_data['low'].values
-            
-            # Simple support and resistance calculation
-            resistance = float(np.max(highs))
-            support = float(np.min(lows))
-            
-            return {
-                'support': support,
-                'resistance': resistance
-            }
-        except Exception:
-            return {'support': None, 'resistance': None}
-    
-    def detect_divergence(self, candles: List[CandleData], indicator_values: List[float]) -> dict:
-        """Detect price and indicator divergence."""
-        if len(candles) < 10 or len(indicator_values) < 10:
-            return {'bullish': False, 'bearish': False}
-        
-        try:
-            prices = [float(c.close) for c in candles[-10:]]
-            indicators = indicator_values[-10:]
-            
-            # Calculate price and indicator trends
-            price_trend = self._calculate_trend(prices)
-            indicator_trend = self._calculate_trend(indicators)
-            
-            # Detect divergence
-            bullish_divergence = price_trend < 0 and indicator_trend > 0
-            bearish_divergence = price_trend > 0 and indicator_trend < 0
-            
-            return {
-                'bullish': bullish_divergence,
-                'bearish': bearish_divergence
-            }
-        except Exception:
-            return {'bullish': False, 'bearish': False}
-    
-    def _calculate_trend(self, values: List[float]) -> float:
-        """Calculate trend direction using linear regression."""
-        if len(values) < 2:
-            return 0.0
-        
-        x = np.arange(len(values))
-        y = np.array(values)
-        
-        # Simple linear regression
-        slope = np.polyfit(x, y, 1)[0]
-        return slope
-    
     def calculate_volatility(self, candles: List[CandleData], period: int = 20) -> float:
-        """Calculate price volatility."""
+        """Calculate volatility using existing ATR indicator."""
         if len(candles) < period:
             return 0.0
         
         try:
-            prices = [float(c.close) for c in candles[-period:]]
-            returns = np.diff(prices) / prices[:-1]
-            volatility = np.std(returns)
-            return float(volatility)
-        except Exception:
+            df = self._candles_to_dataframe(candles)
+            df = ATR(df, n=period)
+            latest_atr = df.iloc[-1].get(f'ATR_{period}', 0)
+            return float(latest_atr) if pd.notna(latest_atr) else 0.0
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error calculating volatility: {e}")
             return 0.0
     
     def calculate_momentum(self, candles: List[CandleData], period: int = 10) -> float:
-        """Calculate price momentum."""
+        """Calculate momentum using RSI."""
         if len(candles) < period:
             return 0.0
         
         try:
-            current_price = float(candles[-1].close)
-            past_price = float(candles[-period].close)
-            momentum = (current_price - past_price) / past_price
-            return float(momentum)
-        except Exception:
-            return 0.0
+            df = self._candles_to_dataframe(candles)
+            df = RSI(df, n=period)
+            latest_rsi = df.iloc[-1].get(f'RSI_{period}', 50)
+            return float(latest_rsi) if pd.notna(latest_rsi) else 50.0
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error calculating momentum: {e}")
+            return 50.0
     
     def detect_patterns(self, candles: List[CandleData]) -> dict:
-        """Detect common candlestick patterns."""
+        """Detect candlestick patterns using existing patterns."""
         if len(candles) < 3:
             return {}
         
         try:
+            df = self._candles_to_dataframe(candles)
+            df = apply_candle_props(df)
+            df = set_candle_patterns(df)
+            
+            latest = df.iloc[-1]
             patterns = {}
             
-            # Get last few candles
-            recent_candles = candles[-3:]
-            
-            # Doji pattern
-            patterns['doji'] = self._detect_doji(recent_candles[-1])
-            
-            # Hammer pattern
-            patterns['hammer'] = self._detect_hammer(recent_candles[-1])
-            
-            # Engulfing pattern
-            if len(recent_candles) >= 2:
-                patterns['engulfing'] = self._detect_engulfing(recent_candles[-2:])
-            
-            # Three white soldiers / three black crows
-            if len(recent_candles) >= 3:
-                patterns['three_soldiers'] = self._detect_three_soldiers(recent_candles[-3:])
-                patterns['three_crows'] = self._detect_three_crows(recent_candles[-3:])
+            # Check for various patterns
+            pattern_columns = [col for col in df.columns if col.startswith('pattern_')]
+            for col in pattern_columns:
+                if latest.get(col, False):
+                    pattern_name = col.replace('pattern_', '')
+                    patterns[pattern_name] = True
             
             return patterns
-        except Exception:
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error detecting patterns: {e}")
             return {}
     
-    def _detect_doji(self, candle: CandleData) -> bool:
-        """Detect doji pattern."""
-        body_size = abs(float(candle.close) - float(candle.open))
-        total_range = float(candle.high) - float(candle.low)
-        
-        if total_range == 0:
-            return False
-        
-        doji_ratio = body_size / total_range
-        return doji_ratio < 0.1  # Body is less than 10% of total range
-    
-    def _detect_hammer(self, candle: CandleData) -> bool:
-        """Detect hammer pattern."""
-        body_size = abs(float(candle.close) - float(candle.open))
-        total_range = float(candle.high) - float(candle.low)
-        
-        if total_range == 0:
-            return False
-        
-        # Hammer has small body and long lower shadow
-        body_ratio = body_size / total_range
-        lower_shadow = min(float(candle.open), float(candle.close)) - float(candle.low)
-        lower_shadow_ratio = lower_shadow / total_range
-        
-        return body_ratio < 0.3 and lower_shadow_ratio > 0.6
-    
-    def _detect_engulfing(self, candles: List[CandleData]) -> str:
-        """Detect engulfing pattern."""
-        if len(candles) != 2:
-            return "none"
-        
-        prev, curr = candles
-        
-        prev_body = abs(float(prev.close) - float(prev.open))
-        curr_body = abs(float(curr.close) - float(curr.open))
-        
-        # Bullish engulfing
-        if (float(curr.close) > float(curr.open) and  # Current is bullish
-            float(prev.close) < float(prev.open) and  # Previous is bearish
-            float(curr.open) < float(prev.close) and  # Current opens below previous close
-            float(curr.close) > float(prev.open) and  # Current closes above previous open
-            curr_body > prev_body):  # Current body engulfs previous
-            return "bullish"
-        
-        # Bearish engulfing
-        elif (float(curr.close) < float(curr.open) and  # Current is bearish
-              float(prev.close) > float(prev.open) and  # Previous is bullish
-              float(curr.open) > float(prev.close) and  # Current opens above previous close
-              float(curr.close) < float(prev.open) and  # Current closes below previous open
-              curr_body > prev_body):  # Current body engulfs previous
-            return "bearish"
-        
-        return "none"
-    
-    def _detect_three_soldiers(self, candles: List[CandleData]) -> bool:
-        """Detect three white soldiers pattern."""
-        if len(candles) != 3:
-            return False
-        
-        # All three candles should be bullish
-        for candle in candles:
-            if float(candle.close) <= float(candle.open):
-                return False
-        
-        # Each candle should open within the previous candle's body
-        for i in range(1, len(candles)):
-            prev_open = float(candles[i-1].open)
-            prev_close = float(candles[i-1].close)
-            curr_open = float(candles[i].open)
+    def get_trend_analysis(self, candles: List[CandleData]) -> Dict[str, Any]:
+        """Get comprehensive trend analysis using existing indicators."""
+        if len(candles) < 20:
+            return {}
             
-            if not (prev_open <= curr_open <= prev_close):
-                return False
-        
-        return True
-    
-    def _detect_three_crows(self, candles: List[CandleData]) -> bool:
-        """Detect three black crows pattern."""
-        if len(candles) != 3:
-            return False
-        
-        # All three candles should be bearish
-        for candle in candles:
-            if float(candle.close) >= float(candle.open):
-                return False
-        
-        # Each candle should open near the previous candle's close
-        for i in range(1, len(candles)):
-            prev_close = float(candles[i-1].close)
-            curr_open = float(candles[i].open)
+        try:
+            df = self._candles_to_dataframe(candles)
             
-            # Allow small gap
-            if abs(curr_open - prev_close) / prev_close > 0.01:
-                return False
-        
-        return True 
+            # Apply all indicators
+            df = RSI(df, n=14)
+            df = MACD(df, n_slow=26, n_fast=12, n_signal=9)
+            df = BollingerBands(df, n=20, s=2)
+            df = ATR(df, n=14)
+            df = KeltnerChannels(df, n_ema=20, n_atr=10)
+            df = apply_candle_props(df)
+            df = set_candle_patterns(df)
+            
+            latest = df.iloc[-1]
+            
+            # Determine trend direction
+            current_price = latest['mid_c']
+            bb_upper = latest.get('BB_UP', current_price)
+            bb_lower = latest.get('BB_LW', current_price)
+            bb_middle = latest.get('BB_MA', current_price)
+            
+            # Trend analysis
+            if current_price > bb_upper:
+                trend = "strong_uptrend"
+            elif current_price > bb_middle:
+                trend = "uptrend"
+            elif current_price < bb_lower:
+                trend = "strong_downtrend"
+            elif current_price < bb_middle:
+                trend = "downtrend"
+            else:
+                trend = "sideways"
+            
+            return {
+                'trend': trend,
+                'rsi': float(latest.get('RSI_14', 50)),
+                'macd': float(latest.get('MACD', 0)),
+                'macd_signal': float(latest.get('SIGNAL', 0)),
+                'macd_histogram': float(latest.get('HIST', 0)),
+                'bollinger_upper': float(bb_upper),
+                'bollinger_middle': float(bb_middle),
+                'bollinger_lower': float(bb_lower),
+                'atr': float(latest.get('ATR_14', 0)),
+                'volatility': float(latest.get('ATR_14', 0)),
+                'support': float(df['mid_l'].min()),
+                'resistance': float(df['mid_h'].max())
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in trend analysis: {e}")
+            return {} 
