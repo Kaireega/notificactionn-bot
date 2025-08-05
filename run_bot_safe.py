@@ -1,50 +1,65 @@
 #!/usr/bin/env python3
 """
-Safe runner that avoids all import conflicts.
+Safe bot runner that avoids naming conflicts with the market_adaptive_bot directory.
 """
-import sys
+
 import os
+import sys
 import shutil
+import tempfile
 from pathlib import Path
 
-def main():
-    """Run the bot safely."""
-    project_root = Path(__file__).parent
-    bot_dir = project_root / "market_adaptive_bot"
-    temp_dir = project_root / "bot_temp"
+def run_bot_safely():
+    """Run the bot by temporarily renaming the directory to avoid import conflicts."""
+    
+    # Get the current directory
+    current_dir = Path.cwd()
+    bot_dir = current_dir / "market_adaptive_bot"
     
     if not bot_dir.exists():
         print("❌ market_adaptive_bot directory not found!")
-        sys.exit(1)
+        return False
     
-    try:
-        # Temporarily rename to avoid conflicts
-        print("🔄 Temporarily renaming directory to avoid conflicts...")
-        shutil.move(str(bot_dir), str(temp_dir))
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
         
-        # Add to path
-        sys.path.insert(0, str(temp_dir))
-        sys.path.insert(0, str(temp_dir / "src"))
+        # Copy the bot directory to temp with a different name
+        temp_bot_dir = temp_path / "trading_bot"
+        print(f"📁 Copying bot to temporary location: {temp_bot_dir}")
+        shutil.copytree(bot_dir, temp_bot_dir)
         
-        # Change directory
-        os.chdir(temp_dir)
+        # Change to the temp directory
+        os.chdir(temp_bot_dir)
         
-        # Import and run
-        print("🚀 Starting bot...")
-        from main import main
-        main()
+        # Add the src directory to Python path
+        src_path = temp_bot_dir / "src"
+        if src_path.exists():
+            sys.path.insert(0, str(src_path))
         
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
-    finally:
-        # Always restore the directory name
+        # Add the project root to Python path for technicals import
+        sys.path.insert(0, str(current_dir))
+        
+        print(f"🔧 Working directory: {os.getcwd()}")
+        print(f"🐍 Python path: {sys.path[:3]}...")
+        
         try:
-            if temp_dir.exists():
-                print("🔄 Restoring directory name...")
-                shutil.move(str(temp_dir), str(bot_dir))
+            # Import and run the main module
+            print("🚀 Starting bot...")
+            import main
+            return True
         except Exception as e:
-            print(f"⚠️  Warning: Could not restore directory: {e}")
+            print(f"❌ Error starting bot: {e}")
+            return False
 
 if __name__ == "__main__":
-    main()
+    print("🤖 Safe Bot Runner")
+    print("=" * 50)
+    
+    success = run_bot_safely()
+    
+    if success:
+        print("✅ Bot started successfully!")
+    else:
+        print("❌ Failed to start bot")
+        sys.exit(1) 

@@ -1,14 +1,30 @@
 import os
+from pathlib import Path
 
 def load_env_from_file(file_path='config.env'):
     """Load environment variables from a config file"""
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ[key] = value
+    # Try multiple possible locations for the config file
+    possible_paths = [
+        file_path,  # Current directory
+        Path(__file__).parent.parent / file_path,  # Root directory (one level up from constants)
+        Path(__file__).parent.parent.parent / file_path,  # Two levels up
+        '.env',  # Standard .env file
+        Path(__file__).parent.parent / '.env',  # .env in root directory
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"Loading environment from: {path}")
+            with open(path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key] = value
+            return True
+    
+    print("Warning: No config.env or .env file found")
+    return False
 
 # Load environment variables from config file
 load_env_from_file()
