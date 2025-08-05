@@ -53,6 +53,25 @@ def MACD(df: pd.DataFrame, n_slow=26, n_fast=12, n_signal=9):
 
     return df
 
+def Stochastic(df: pd.DataFrame, n=14, k=3, d=3):
+    """Calculate Stochastic Oscillator."""
+    # Calculate %K
+    lowest_low = df.mid_l.rolling(window=n).min()
+    highest_high = df.mid_h.rolling(window=n).max()
+    
+    # %K = (Current Close - Lowest Low) / (Highest High - Lowest Low) * 100
+    df['STOCH_K'] = ((df.mid_c - lowest_low) / (highest_high - lowest_low)) * 100
+    
+    # %D is the 3-period SMA of %K
+    df['STOCH_D'] = df['STOCH_K'].rolling(window=k).mean()
+    
+    return df
+
+def EMA(df: pd.DataFrame, n=20, column='mid_c'):
+    """Calculate Exponential Moving Average."""
+    df[f'EMA_{n}'] = df[column].ewm(span=n, min_periods=n).mean()
+    return df
+
 
 
 

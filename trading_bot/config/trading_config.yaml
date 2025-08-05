@@ -1,0 +1,93 @@
+# Market Adaptive Trading Bot Configuration
+
+# Trading Settings
+trading:
+  risk_percentage: 2.0
+  max_trades_per_day: 10
+  default_timeframe: M5
+  pairs:
+    - EUR_USD
+    - USD_JPY
+    - GBP_JPY
+  hold_time_settings:
+    min_hold_time_minutes: 30
+    max_hold_time_minutes: 300  # 5 hours
+    default_hold_time_minutes: 120  # 2 hours
+    market_condition_hold_times:
+      news_reactionary: [30, 180]   # 30 min to 3 hours
+      reversal: [60, 300]           # 1 hour to 5 hours
+      breakout: [120, 300]          # 2 hours to 5 hours
+      ranging: [30, 180]            # 30 min to 3 hours
+
+# Multi-Timeframe Analysis Settings
+multi_timeframe:
+  enabled: true
+  timeframes:
+    - M1
+    - M5
+    - M15
+  weights:
+    M1: 0.1    # 10% weight - noise filtering
+    M5: 0.3    # 30% weight - short-term signals
+    M15: 0.4   # 40% weight - medium-term trends
+  minimum_timeframes: 2
+  consensus_threshold: 0.6
+
+# Market Conditions
+market_conditions:
+  volatility_threshold: 0.0015
+  trend_strength_threshold: 0.7
+  breakout_threshold: 0.0020
+  ranging_threshold: 0.0008
+
+# Risk Management
+risk_management:
+  max_daily_loss: 5.0
+  max_position_size: 10.0
+  correlation_limit: 0.7
+  max_open_trades: 3
+  stop_loss_atr_multiplier: 2.0
+  trailing_stop: true
+  trailing_stop_atr_multiplier: 1.5
+
+# AI Analysis
+ai_analysis:
+  model: gpt-4
+  max_tokens: 1000
+  temperature: 0.3
+  analysis_frequency: 300  # 5 minutes
+  confidence_threshold: 0.5  # Lowered from 0.7 to generate more recommendations
+  include_news_sentiment: true
+  include_technical_analysis: true
+  include_market_context: true
+
+# Notifications
+notifications:
+  telegram:
+    enabled: true
+    send_charts: true
+    send_analysis: true
+  email:
+    enabled: true
+    daily_summary: true
+    trade_alerts: true
+  loop_reports:
+    enabled: true
+    send_on_error: true
+    include_performance: true
+  notification_cooldown: 300  # 5 minutes
+
+# Data Collection
+data_collection:
+  historical_days: 30
+  update_frequency: 60  # 60 seconds
+  store_raw_data: true
+  compression: true
+  backup_frequency: 24
+
+# Performance Tracking
+performance:
+  track_metrics: true
+  save_trades: true
+  generate_reports: true
+  report_frequency: daily 
