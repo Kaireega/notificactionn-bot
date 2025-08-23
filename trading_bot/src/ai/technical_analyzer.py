@@ -3,6 +3,7 @@ Enhanced Technical Analyzer - Uses existing technical indicators from technicals
 """
 import numpy as np
 import pandas as pd
+import traceback
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 from decimal import Decimal
@@ -17,8 +18,8 @@ sys.path.append(str(root_dir))
 src_dir = Path(__file__).parent.parent
 sys.path.append(str(src_dir))
 
-# Use absolute imports
-from src.core.models import CandleData, TechnicalIndicators, TimeFrame
+# Use relative imports
+from ..core.models import CandleData, TechnicalIndicators, TimeFrame
 from technicals.indicators import RSI, MACD, BollingerBands, ATR, KeltnerChannels, Stochastic, EMA
 from technicals.patterns import apply_candle_props, set_candle_patterns
 
@@ -32,7 +33,12 @@ class TechnicalAnalyzer:
     
     def calculate_indicators(self, candles: List[CandleData]) -> TechnicalIndicators:
         """Calculate technical indicators using existing technicals/indicators.py functions."""
+        if self.logger:
+            self.logger.info(f"📈 Starting technical indicator calculation for {len(candles)} candles...")
+        
         if len(candles) < 20:
+            if self.logger:
+                self.logger.warning(f"⚠️ Insufficient candles for technical analysis: {len(candles)} < 20")
             return TechnicalIndicators()
         
         try:
@@ -50,6 +56,9 @@ class TechnicalAnalyzer:
                     if pd.notna(latest_rsi):
                         indicators.rsi = float(latest_rsi)
                         indicators.rsi_14 = float(latest_rsi)
+                else:
+                    if self.logger:
+                        self.logger.warning("RSI column not found in DataFrame")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating RSI: {e}")
@@ -62,18 +71,27 @@ class TechnicalAnalyzer:
                     if pd.notna(latest_macd):
                         indicators.macd = float(latest_macd)
                         indicators.macd_line = float(latest_macd)
+                else:
+                    if self.logger:
+                        self.logger.warning("MACD column not found in DataFrame")
                 
                 if 'SIGNAL' in df_macd.columns:
                     latest_signal = df_macd.iloc[-1]['SIGNAL']
                     if pd.notna(latest_signal):
                         indicators.macd_signal = float(latest_signal)
                         indicators.macd_signal_line = float(latest_signal)
+                else:
+                    if self.logger:
+                        self.logger.warning("MACD Signal column not found in DataFrame")
                 
                 if 'HIST' in df_macd.columns:
                     latest_hist = df_macd.iloc[-1]['HIST']
                     if pd.notna(latest_hist):
                         indicators.macd_histogram = float(latest_hist)
                         indicators.macd_histogram_line = float(latest_hist)
+                else:
+                    if self.logger:
+                        self.logger.warning("MACD Histogram column not found in DataFrame")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating MACD: {e}")
@@ -81,21 +99,31 @@ class TechnicalAnalyzer:
             # Bollinger Bands
             try:
                 df_bb = BollingerBands(df, n=20, s=2)
+                
                 if 'BB_UP' in df_bb.columns:
                     latest_bb_upper = df_bb.iloc[-1]['BB_UP']
                     if pd.notna(latest_bb_upper):
                         indicators.bollinger_upper = float(latest_bb_upper)
+                else:
+                    if self.logger:
+                        self.logger.warning("BB_UP column not found in DataFrame")
                 
                 if 'BB_LW' in df_bb.columns:
                     latest_bb_lower = df_bb.iloc[-1]['BB_LW']
                     if pd.notna(latest_bb_lower):
                         indicators.bollinger_lower = float(latest_bb_lower)
+                else:
+                    if self.logger:
+                        self.logger.warning("BB_LW column not found in DataFrame")
                 
                 if 'BB_MA' in df_bb.columns:
                     latest_bb_middle = df_bb.iloc[-1]['BB_MA']
                     if pd.notna(latest_bb_middle):
                         indicators.bollinger_middle = float(latest_bb_middle)
                         indicators.bb_ma = float(latest_bb_middle)
+                else:
+                    if self.logger:
+                        self.logger.warning("BB_MA column not found in DataFrame")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating Bollinger Bands: {e}")
@@ -103,10 +131,15 @@ class TechnicalAnalyzer:
             # ATR
             try:
                 df_atr = ATR(df, n=14)
+                
                 if 'ATR_14' in df_atr.columns:
                     latest_atr = df_atr.iloc[-1]['ATR_14']
                     if pd.notna(latest_atr):
                         indicators.atr = float(latest_atr)
+                        indicators.atr_14 = float(latest_atr)
+                else:
+                    if self.logger:
+                        self.logger.warning("ATR_14 column not found in DataFrame")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating ATR: {e}")
@@ -177,11 +210,33 @@ class TechnicalAnalyzer:
                 if self.logger:
                     self.logger.error(f"Error calculating support/resistance: {e}")
             
+            # Return the calculated indicators
             return indicators
             
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error calculating technical indicators: {e}")
+                self.logger.error(f"❌ Error calculating technical indicators: {e}")
+            return TechnicalIndicators()
+    
+    async def calculate_all_indicators(self, candles_by_timeframe: Dict[str, List[CandleData]], 
+                                     market_context: Any) -> TechnicalIndicators:
+        """Calculate all technical indicators for multiple timeframes."""
+        try:
+            # Get the primary timeframe (usually M5)
+            primary_timeframe = list(candles_by_timeframe.keys())[0]
+            primary_candles = candles_by_timeframe[primary_timeframe]
+            
+            if len(primary_candles) < 20:
+                return TechnicalIndicators()
+            
+            # Calculate indicators using the existing method
+            indicators = self.calculate_indicators(primary_candles)
+            
+            return indicators
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"❌ Error calculating multi-timeframe technical indicators: {e}")
             return TechnicalIndicators()
     
     def _candles_to_dataframe(self, candles: List[CandleData]) -> pd.DataFrame:

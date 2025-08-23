@@ -4,18 +4,26 @@ Uses existing scraping components and database infrastructure.
 """
 import asyncio
 import logging
+import urllib3
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from decimal import Decimal
 import pytz
 
+import sys
+from pathlib import Path
+
+# Add the project root to the path to import API modules
+root_dir = Path(__file__).parent.parent.parent.parent
+sys.path.append(str(root_dir))
+
 from scraping.fx_calendar import get_fx_calendar
 from scraping.bloomberg_com import bloomberg_com
 from scraping.dailyfx_com import dailyfx_com
 from db.db import DataDB
-from src.core.models import MarketContext, MarketCondition
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import MarketContext, MarketCondition
+from ..utils.config import Config
+from ..utils.logger import get_logger
 
 
 class FundamentalAnalyzer:
@@ -25,15 +33,18 @@ class FundamentalAnalyzer:
         self.config = config
         self.logger = get_logger(__name__)
         
-        # Initialize database connection with error handling
-        try:
-            self.db = DataDB()
-            self.db_available = True
-            self.logger.info("Database connection established")
-        except Exception as e:
-            self.logger.warning(f"Database connection failed: {e}. Running without database.")
-            self.db = None
-            self.db_available = False
+        # Initialize database connection with error handling and toggle
+        self.db = None
+        self.db_available = False
+        if getattr(self.config, 'enable_db', False):
+            try:
+                self.db = DataDB()
+                self.db_available = True
+                self.logger.info("Database connection established")
+            except Exception as e:
+                self.logger.warning(f"Database connection failed: {e}. Running without database.")
+                self.db = None
+                self.db_available = False
         
         # Market session times (UTC)
         self.sessions = {
@@ -67,9 +78,20 @@ class FundamentalAnalyzer:
     
     async def start(self) -> None:
         """Start fundamental analysis system."""
+        print("📰 [DEBUG] Starting fundamental analyzer...")
         self.logger.info("Starting fundamental analyzer...")
-        await self._load_calendar_data()
-        await self._load_news_data()
+        
+        if getattr(self.config, 'enable_db', False):
+            print("📅 [DEBUG] Loading calendar data...")
+            await self._load_calendar_data()
+        print("✅ [DEBUG] Calendar data loaded")
+        
+        if getattr(self.config, 'enable_news', False):
+            print("📰 [DEBUG] Loading news data...")
+            await self._load_news_data()
+        print("✅ [DEBUG] News data loaded")
+        
+        print("✅ [DEBUG] Fundamental analyzer started successfully")
         self.logger.info("Fundamental analyzer started successfully")
     
     async def stop(self) -> None:
@@ -78,53 +100,98 @@ class FundamentalAnalyzer:
         self.logger.info("Fundamental analyzer stopped")
     
     async def analyze_fundamentals(self, pair: str, market_context: MarketContext) -> Dict[str, Any]:
-        """Comprehensive fundamental analysis for a pair."""
+        """Analyze fundamental factors for a trading pair."""
         try:
-            # Get current market session
-            current_session = self._get_current_session()
-            session_overlap = self._get_session_overlap()
+            # Extract base and quote currencies
+            base_currency, quote_currency = pair.split('_')
             
-            # Get economic calendar events
-            calendar_events = await self._get_relevant_events(pair)
-            high_impact_events = self._filter_high_impact_events(calendar_events)
+            # Get relevant economic events
+            relevant_events = await self._get_relevant_events(pair)
             
             # Get news sentiment
             news_sentiment = await self._get_news_sentiment(pair)
             
-            # Get correlation analysis
-            correlation_analysis = self._analyze_correlations(pair)
+            # Calculate overall sentiment
+            sentiment_score = self._calculate_sentiment_score(relevant_events, news_sentiment)
             
-            # Calculate fundamental score
-            fundamental_score = self._calculate_fundamental_score(
-                pair, calendar_events, news_sentiment, current_session, session_overlap
-            )
+            # Determine fundamental bias
+            fundamental_bias = self._determine_fundamental_bias(sentiment_score)
             
-            # Determine if we should avoid trading
-            avoid_trading = self._should_avoid_trading(
-                pair, high_impact_events, news_sentiment, current_session
-            )
-            
-            return {
-                'fundamental_score': fundamental_score,
-                'avoid_trading': avoid_trading,
-                'current_session': current_session,
-                'session_overlap': session_overlap,
-                'calendar_events': calendar_events,
-                'high_impact_events': high_impact_events,
+            result = {
+                'sentiment_score': sentiment_score,
+                'fundamental_bias': fundamental_bias,
+                'economic_events': relevant_events,
                 'news_sentiment': news_sentiment,
-                'correlation_analysis': correlation_analysis,
-                'position_size_multiplier': self._calculate_position_multiplier(
-                    fundamental_score, avoid_trading, high_impact_events
-                )
+                'analysis_timestamp': datetime.now()
             }
+            
+            return result
             
         except Exception as e:
-            self.logger.error(f"Error in fundamental analysis for {pair}: {e}")
+            self.logger.error(f"❌ Error in fundamental analysis for {pair}: {e}")
             return {
-                'fundamental_score': 0.5,
-                'avoid_trading': False,
-                'position_size_multiplier': 1.0
+                'sentiment_score': 0.5,
+                'fundamental_bias': 'NEUTRAL',
+                'economic_events': [],
+                'news_sentiment': {},
+                'analysis_timestamp': datetime.now(),
+                'error': str(e)
             }
+    
+    def _calculate_sentiment_score(self, relevant_events: List[Dict[str, Any]], 
+                                 news_sentiment: Dict[str, Any]) -> float:
+        """Calculate overall sentiment score from events and news."""
+        try:
+            # Base sentiment from news
+            base_sentiment = news_sentiment.get('sentiment_score', 0.5)
+            
+            # Adjust based on economic events
+            event_sentiment = 0.5  # Neutral base
+            if relevant_events:
+                # Simple sentiment calculation based on event count and impact
+                high_impact_count = len([e for e in relevant_events if e.get('impact') == 'High'])
+                medium_impact_count = len([e for e in relevant_events if e.get('impact') == 'Medium'])
+                
+                # Positive events (like GDP growth, employment) tend to be bullish
+                positive_keywords = ['gdp', 'employment', 'growth', 'retail sales', 'manufacturing']
+                negative_keywords = ['inflation', 'unemployment', 'deficit', 'recession']
+                
+                positive_count = 0
+                negative_count = 0
+                
+                for event in relevant_events:
+                    event_name = event.get('event', '').lower()
+                    if any(keyword in event_name for keyword in positive_keywords):
+                        positive_count += 1
+                    elif any(keyword in event_name for keyword in negative_keywords):
+                        negative_count += 1
+                
+                # Calculate event sentiment
+                if positive_count > negative_count:
+                    event_sentiment = 0.6 + (positive_count - negative_count) * 0.1
+                elif negative_count > positive_count:
+                    event_sentiment = 0.4 - (negative_count - positive_count) * 0.1
+                else:
+                    event_sentiment = 0.5
+            
+            # Combine news and event sentiment (weighted average)
+            final_sentiment = (base_sentiment * 0.7) + (event_sentiment * 0.3)
+            
+            # Ensure it's between 0 and 1
+            return max(0.0, min(1.0, final_sentiment))
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating sentiment score: {e}")
+            return 0.5  # Neutral on error
+    
+    def _determine_fundamental_bias(self, sentiment_score: float) -> str:
+        """Determine fundamental bias based on sentiment score."""
+        if sentiment_score > 0.6:
+            return 'BULLISH'
+        elif sentiment_score < 0.4:
+            return 'BEARISH'
+        else:
+            return 'NEUTRAL'
     
     async def _load_calendar_data(self) -> None:
         """Load economic calendar data from database or scrape if needed."""
@@ -156,7 +223,11 @@ class FundamentalAnalyzer:
     async def _load_news_data(self) -> None:
         """Load news sentiment data using existing scrapers."""
         try:
-            # Use existing scraping functions
+            # Disable SSL warnings for web scraping
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            # Use existing scraping functions (SSL handling is done in the scraping functions)
             bloomberg_news = bloomberg_com()
             dailyfx_sentiment = dailyfx_com()
             
@@ -224,6 +295,10 @@ class FundamentalAnalyzer:
                     event_time = datetime.fromisoformat(event_time.replace('Z', '+00:00'))
                 except:
                     continue
+            
+            # Ensure event_time has timezone info
+            if event_time.tzinfo is None:
+                event_time = event_time.replace(tzinfo=timezone.utc)
             
             time_diff = event_time - current_time
             if timedelta(hours=-2) <= time_diff <= timedelta(hours=24):

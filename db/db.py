@@ -1,6 +1,6 @@
+import os
 from pymongo import MongoClient, errors
-
-from constants.defs import MONGO_CONN_STR
+import certifi
 
 class DataDB:
 
@@ -8,13 +8,52 @@ class DataDB:
     CALENDAR_COLL = "forex_calendar"
     INSTRUMENTS_COLL = "forex_instruments"
 
-    def __init__(self):
-        self.client = MongoClient(MONGO_CONN_STR)
-        self.db = self.client.forex_learning
+    def __init__(self, uri: str | None = None, db_name: str = "forex_learning"):
+        # Prefer env var; fallback to provided uri
+        self._uri = uri or os.getenv('MONGODB_URI')
+        if not self._uri:
+            raise ValueError("MONGODB_URI is required for database connectivity")
+        self._db_name = db_name
+        self.client = None
+        self.db = None
+        self._connect()
+
+    def _connect(self):
+        # Secure TLS with certifi CA bundle; enable pooling
+        self.client = MongoClient(
+            self._uri,
+            tls=True,
+            tlsCAFile=certifi.where(),
+            serverSelectionTimeoutMS=20000,
+            connectTimeoutMS=20000,
+            socketTimeoutMS=20000,
+            maxPoolSize=10,
+            retryWrites=True,
+        )
+        self.db = self.client[self._db_name]
+
+    def ping(self) -> bool:
+        try:
+            self.client.admin.command('ping')
+            return True
+        except Exception:
+            try:
+                self._connect()
+                self.client.admin.command('ping')
+                return True
+            except Exception:
+                return False
 
 
     def test_connection(self):
-        print(self.db.list_collection_names())
+        try:
+            ok = self.ping()
+            if ok:
+                print(self.db.list_collection_names())
+            else:
+                print("Database ping failed")
+        except Exception as e:
+            print(f"DB test_connection error: {e}")
 
     
     def delete_many(self, collection, **kwargs):

@@ -10,9 +10,9 @@ from decimal import Decimal
 import math
 import statistics
 
-from src.core.models import TradeDecision, MarketContext, TechnicalIndicators
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import TradeDecision, MarketContext, TechnicalIndicators
+from ..utils.config import Config
+from ..utils.logger import get_logger
 
 
 class AdvancedRiskManager:
@@ -57,8 +57,14 @@ class AdvancedRiskManager:
     
     async def start(self) -> None:
         """Start advanced risk management system."""
+        print("⚠️ [DEBUG] Starting advanced risk manager...")
         self.logger.info("Starting advanced risk manager...")
+        
+        print("📊 [DEBUG] Loading historical data...")
         await self._load_historical_data()
+        print("✅ [DEBUG] Historical data loaded")
+        
+        print("✅ [DEBUG] Advanced risk manager started successfully")
         self.logger.info("Advanced risk manager started successfully")
     
     async def stop(self) -> None:
@@ -66,72 +72,149 @@ class AdvancedRiskManager:
         self.logger.info("Stopping advanced risk manager...")
         self.logger.info("Advanced risk manager stopped")
     
-    async def assess_trade_risk(self, decision: TradeDecision, market_context: MarketContext, 
-                              technical_indicators: TechnicalIndicators, 
+    async def assess_trade_risk(self, recommendation: TradeDecision, 
+                              market_context: MarketContext, 
+                              technical_indicators: TechnicalIndicators,
                               fundamental_analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Comprehensive risk assessment for a trade decision."""
+        """Assess risk for a potential trade."""
+        self.logger.info(f"⚠️ Starting risk assessment for {recommendation.recommendation.pair}...")
+        
         try:
-            # Basic risk checks
-            basic_risk = await self._basic_risk_check(decision)
-            if not basic_risk['approved']:
-                return basic_risk
+            # Calculate market risk
+            self.logger.info(f"🌍 {recommendation.recommendation.pair}: Calculating market risk...")
+            market_risk = await self._calculate_market_risk(market_context, technical_indicators)
+            self.logger.info(f"🌍 {recommendation.recommendation.pair}: Market risk score: {market_risk:.3f}")
             
-            # Kelly Criterion position sizing
-            kelly_size = await self._calculate_kelly_position_size(decision, market_context)
+            # Calculate position risk
+            self.logger.info(f"💰 {recommendation.recommendation.pair}: Calculating position risk...")
+            position_risk = await self._calculate_position_risk(recommendation)
+            self.logger.info(f"💰 {recommendation.recommendation.pair}: Position risk score: {position_risk:.3f}")
             
-            # Portfolio heat check
-            portfolio_risk = await self._check_portfolio_heat(decision)
-            if not portfolio_risk['approved']:
-                return portfolio_risk
+            # Calculate correlation risk
+            self.logger.info(f"🔗 {recommendation.recommendation.pair}: Calculating correlation risk...")
+            correlation_risk = await self._calculate_correlation_risk(recommendation.recommendation.pair)
+            self.logger.info(f"🔗 {recommendation.recommendation.pair}: Correlation risk score: {correlation_risk:.3f}")
             
-            # Volatility-adjusted sizing
-            volatility_size = await self._calculate_volatility_adjusted_size(
-                decision, technical_indicators, market_context
-            )
+            # Calculate fundamental risk
+            self.logger.info(f"📰 {recommendation.recommendation.pair}: Calculating fundamental risk...")
+            fundamental_risk = await self._calculate_fundamental_risk(fundamental_analysis)
+            self.logger.info(f"📰 {recommendation.recommendation.pair}: Fundamental risk score: {fundamental_risk:.3f}")
             
-            # Time-based risk decay
-            time_decay = await self._calculate_time_decay(decision, fundamental_analysis)
+            # Calculate overall risk score
+            self.logger.info(f"🧮 {recommendation.recommendation.pair}: Calculating overall risk score...")
+            overall_risk = self._calculate_overall_risk(market_risk, position_risk, correlation_risk, fundamental_risk)
+            self.logger.info(f"🧮 {recommendation.recommendation.pair}: Overall risk score: {overall_risk:.3f}")
             
-            # Drawdown protection
-            drawdown_risk = await self._check_drawdown_risk()
-            if not drawdown_risk['approved']:
-                return drawdown_risk
+            # Determine risk level
+            risk_level = self._determine_risk_level(overall_risk)
+            self.logger.info(f"📊 {recommendation.recommendation.pair}: Risk level: {risk_level}")
             
-            # Final position size calculation
-            final_size = self._calculate_final_position_size(
-                kelly_size, volatility_size, time_decay, fundamental_analysis
-            )
+            # Check if trade should be approved
+            approved = overall_risk <= self.config.risk_management.max_risk_threshold
+            self.logger.info(f"✅ {recommendation.recommendation.pair}: Trade approved: {approved} (threshold: {self.config.risk_management.max_risk_threshold})")
             
-            # Risk-reward validation
-            risk_reward_check = await self._validate_risk_reward(decision, final_size)
-            if not risk_reward_check['approved']:
-                return risk_reward_check
-            
-            return {
-                'approved': True,
-                'position_size': final_size,
-                'risk_amount': final_size * self._calculate_risk_per_share(decision),
-                'kelly_size': kelly_size,
-                'volatility_size': volatility_size,
-                'time_decay_multiplier': time_decay,
-                'portfolio_heat': self.portfolio_heat,
-                'drawdown': self.current_drawdown,
-                'risk_score': self._calculate_risk_score(decision, final_size),
-                'notes': [
-                    f"Kelly Criterion: {kelly_size:.2f}",
-                    f"Volatility adjusted: {volatility_size:.2f}",
-                    f"Time decay: {time_decay:.2f}",
-                    f"Portfolio heat: {self.portfolio_heat:.2f}"
-                ]
+            result = {
+                'risk_score': overall_risk,
+                'risk_level': risk_level,
+                'approved': approved,
+                'market_risk': market_risk,
+                'position_risk': position_risk,
+                'correlation_risk': correlation_risk,
+                'fundamental_risk': fundamental_risk,
+                'reason': 'Risk within acceptable limits' if approved else f'Risk {overall_risk:.3f} exceeds threshold {self.config.risk_management.max_risk_threshold}',
+                'assessment_timestamp': datetime.now()
             }
+            
+            self.logger.info(f"✅ Risk assessment completed for {recommendation.recommendation.pair}")
+            return result
             
         except Exception as e:
-            self.logger.error(f"Error in risk assessment: {e}")
+            self.logger.error(f"❌ Error in risk assessment for {recommendation.recommendation.pair}: {e}")
             return {
+                'risk_score': 1.0,  # Maximum risk on error
+                'risk_level': 'HIGH',
                 'approved': False,
-                'reason': f"Risk assessment error: {e}",
-                'position_size': 0.0
+                'reason': f'Error in risk assessment: {str(e)}',
+                'assessment_timestamp': datetime.now()
             }
+
+    async def _calculate_market_risk(self, market_context: MarketContext, 
+                                     technical_indicators: TechnicalIndicators) -> float:
+        """Estimate market risk from volatility, trend strength, and momentum.
+        Returns a score in [0,1], higher = riskier.
+        """
+        try:
+            volatility = float(getattr(market_context, 'volatility', 0.0) or 0.0)
+            trend_strength = float(getattr(market_context, 'trend_strength', 0.0) or 0.0)
+            # Normalize metrics
+            vol_component = max(0.0, min(1.0, volatility))
+            trend_component = 1.0 - max(0.0, min(1.0, trend_strength))
+            # Technical ATR can add to risk when high
+            atr = float(getattr(technical_indicators, 'atr', 0.0) or 0.0)
+            atr_component = max(0.0, min(1.0, atr * 100))  # heuristic normalization
+            risk = 0.5 * vol_component + 0.3 * trend_component + 0.2 * atr_component
+            return max(0.0, min(1.0, risk))
+        except Exception:
+            return 0.7
+
+    async def _calculate_position_risk(self, decision: TradeDecision) -> float:
+        """Estimate per-trade position risk from stop distance relative to price.
+        Returns [0,1].
+        """
+        try:
+            entry = decision.recommendation.entry_price
+            stop = decision.modified_stop_loss or decision.recommendation.stop_loss
+            if not entry or not stop:
+                return 0.6
+            rel_risk = abs(float(entry - stop)) / max(float(entry), 1e-6)
+            # Normalize: 0.5% -> ~0.1, 2% -> ~0.4, 5% -> ~1.0
+            score = min(1.0, rel_risk / 0.05)
+            return score
+        except Exception:
+            return 0.6
+
+    async def _calculate_correlation_risk(self, pair: str) -> float:
+        """Estimate portfolio correlation heat risk. Uses current portfolio_heat.
+        Returns [0,1].
+        """
+        try:
+            return max(0.0, min(1.0, self.portfolio_heat))
+        except Exception:
+            return 0.3
+
+    async def _calculate_fundamental_risk(self, fundamental_analysis: Dict[str, Any]) -> float:
+        """Estimate fundamental risk from sentiment and event proximity.
+        Returns [0,1].
+        """
+        try:
+            sentiment_score = float(fundamental_analysis.get('sentiment_score', 0.0) or 0.0)
+            high_impact_events = fundamental_analysis.get('high_impact_events', []) or []
+            # Negative sentiment increases risk, more events increases risk
+            sentiment_component = 0.5 * (1.0 - max(-1.0, min(1.0, sentiment_score)))
+            event_component = min(1.0, len(high_impact_events) / 5.0)
+            return max(0.0, min(1.0, 0.6 * sentiment_component + 0.4 * event_component))
+        except Exception:
+            return 0.4
+
+    def _calculate_overall_risk(self, market_risk: float, position_risk: float,
+                                 correlation_risk: float, fundamental_risk: float) -> float:
+        """Combine components to overall risk score [0,1]."""
+        try:
+            weights = {
+                'market': 0.35,
+                'position': 0.35,
+                'correlation': 0.15,
+                'fundamental': 0.15,
+            }
+            score = (
+                market_risk * weights['market'] +
+                position_risk * weights['position'] +
+                correlation_risk * weights['correlation'] +
+                fundamental_risk * weights['fundamental']
+            )
+            return max(0.0, min(1.0, score))
+        except Exception:
+            return 0.8
     
     async def _basic_risk_check(self, decision: TradeDecision) -> Dict[str, Any]:
         """Basic risk management checks."""

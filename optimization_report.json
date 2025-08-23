@@ -1,0 +1,857 @@
+{
+  "optimization_method": "random_search",
+  "iterations": 50,
+  "execution_time": 0.023114,
+  "best_parameters": {
+    "rsi_oversold": 31,
+    "rsi_overbought": 70,
+    "macd_signal_threshold": 8.533247399262804e-05,
+    "bollinger_threshold": 0.06362216749265406,
+    "atr_multiplier": 2.3574029810782235,
+    "min_signal_strength": 0.616251771609959,
+    "risk_percentage": 1.1397509299005828
+  },
+  "best_score": 0.0,
+  "score_statistics": {
+    "min": 0.0,
+    "max": 0.0,
+    "mean": 0.0,
+    "std": 0.0,
+    "median": 0.0
+  },
+  "parameter_statistics": {
+    "rsi_oversold": {
+      "min": 20,
+      "max": 35,
+      "mean": 26.58,
+      "std": 4.635040452897902,
+      "best": 31
+    },
+    "rsi_overbought": {
+      "min": 65,
+      "max": 80,
+      "mean": 71.46,
+      "std": 4.530827738945722,
+      "best": 70
+    },
+    "macd_signal_threshold": {
+      "min": 5.068796263271675e-05,
+      "max": 0.00019771025158085283,
+      "mean": 0.00012102528756121491,
+      "std": 4.579857359620306e-05,
+      "best": 8.533247399262804e-05
+    },
+    "bollinger_threshold": {
+      "min": 0.05229853545676108,
+      "max": 0.19701359309907307,
+      "mean": 0.13182842916609314,
+      "std": 0.041457277792542914,
+      "best": 0.06362216749265406
+    },
+    "atr_multiplier": {
+      "min": 1.5157268186248765,
+      "max": 2.9697280277120397,
+      "mean": 2.1468516447476405,
+      "std": 0.4429530542955704,
+      "best": 2.3574029810782235
+    },
+    "min_signal_strength": {
+      "min": 0.4006090399296189,
+      "max": 0.6857574269290778,
+      "mean": 0.5362050551993185,
+      "std": 0.0945652684069717,
+      "best": 0.616251771609959
+    },
+    "risk_percentage": {
+      "min": 0.5081226898122099,
+      "max": 1.989250021571178,
+      "mean": 1.2482962545149014,
+      "std": 0.46802962674719306,
+      "best": 1.1397509299005828
+    }
+  },
+  "top_10_results": [
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 8.533247399262804e-05,
+        "bollinger_threshold": 0.06362216749265406,
+        "atr_multiplier": 2.3574029810782235,
+        "min_signal_strength": 0.616251771609959,
+        "risk_percentage": 1.1397509299005828
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 70, 'macd_signal_threshold': 8.533247399262804e-05, 'bollinger_threshold': 0.06362216749265406, 'atr_multiplier': 2.3574029810782235, 'min_signal_strength': 0.616251771609959, 'risk_percentage': 1.1397509299005828}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 7.503656628809212e-05,
+        "bollinger_threshold": 0.07224936498082203,
+        "atr_multiplier": 2.053081384438377,
+        "min_signal_strength": 0.4079722446741922,
+        "risk_percentage": 0.7798634843191514
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 66, 'macd_signal_threshold': 7.503656628809212e-05, 'bollinger_threshold': 0.07224936498082203, 'atr_multiplier': 2.053081384438377, 'min_signal_strength': 0.4079722446741922, 'risk_percentage': 0.7798634843191514}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 34,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 0.00017178220975844576,
+        "bollinger_threshold": 0.18723769324952183,
+        "atr_multiplier": 2.014752488244883,
+        "min_signal_strength": 0.570026735459311,
+        "risk_percentage": 1.6917167286278065
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 34, 'rsi_overbought': 70, 'macd_signal_threshold': 0.00017178220975844576, 'bollinger_threshold': 0.18723769324952183, 'atr_multiplier': 2.014752488244883, 'min_signal_strength': 0.570026735459311, 'risk_percentage': 1.6917167286278065}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 24,
+        "rsi_overbought": 71,
+        "macd_signal_threshold": 0.00013080889113691757,
+        "bollinger_threshold": 0.13573288421771906,
+        "atr_multiplier": 1.6620432226708084,
+        "min_signal_strength": 0.5725595377405442,
+        "risk_percentage": 1.9113354770744522
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 24, 'rsi_overbought': 71, 'macd_signal_threshold': 0.00013080889113691757, 'bollinger_threshold': 0.13573288421771906, 'atr_multiplier': 1.6620432226708084, 'min_signal_strength': 0.5725595377405442, 'risk_percentage': 1.9113354770744522}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 74,
+        "macd_signal_threshold": 0.00013536478454219408,
+        "bollinger_threshold": 0.1963917667357199,
+        "atr_multiplier": 1.5993373361779006,
+        "min_signal_strength": 0.4900654566237256,
+        "risk_percentage": 0.7858325186091629
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 74, 'macd_signal_threshold': 0.00013536478454219408, 'bollinger_threshold': 0.1963917667357199, 'atr_multiplier': 1.5993373361779006, 'min_signal_strength': 0.4900654566237256, 'risk_percentage': 0.7858325186091629}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 29,
+        "rsi_overbought": 77,
+        "macd_signal_threshold": 0.00018805449011977463,
+        "bollinger_threshold": 0.07339384953303638,
+        "atr_multiplier": 1.8364509218431024,
+        "min_signal_strength": 0.47663115854271276,
+        "risk_percentage": 0.7352863815454256
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 29, 'rsi_overbought': 77, 'macd_signal_threshold': 0.00018805449011977463, 'bollinger_threshold': 0.07339384953303638, 'atr_multiplier': 1.8364509218431024, 'min_signal_strength': 0.47663115854271276, 'risk_percentage': 0.7352863815454256}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 0.00011431742284746408,
+        "bollinger_threshold": 0.08005119527617564,
+        "atr_multiplier": 1.7608608633256422,
+        "min_signal_strength": 0.6248916836748325,
+        "risk_percentage": 1.338596992046032
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 66, 'macd_signal_threshold': 0.00011431742284746408, 'bollinger_threshold': 0.08005119527617564, 'atr_multiplier': 1.7608608633256422, 'min_signal_strength': 0.6248916836748325, 'risk_percentage': 1.338596992046032}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 29,
+        "rsi_overbought": 73,
+        "macd_signal_threshold": 8.102357430008966e-05,
+        "bollinger_threshold": 0.1251859423011708,
+        "atr_multiplier": 1.6370318973050175,
+        "min_signal_strength": 0.46812871553279817,
+        "risk_percentage": 1.9455676017717642
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 29, 'rsi_overbought': 73, 'macd_signal_threshold': 8.102357430008966e-05, 'bollinger_threshold': 0.1251859423011708, 'atr_multiplier': 1.6370318973050175, 'min_signal_strength': 0.46812871553279817, 'risk_percentage': 1.9455676017717642}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 25,
+        "rsi_overbought": 80,
+        "macd_signal_threshold": 0.0001389622873214491,
+        "bollinger_threshold": 0.1783999293696259,
+        "atr_multiplier": 2.408732076685215,
+        "min_signal_strength": 0.4081641018995913,
+        "risk_percentage": 0.6311154350925541
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 25, 'rsi_overbought': 80, 'macd_signal_threshold': 0.0001389622873214491, 'bollinger_threshold': 0.1783999293696259, 'atr_multiplier': 2.408732076685215, 'min_signal_strength': 0.4081641018995913, 'risk_percentage': 0.6311154350925541}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 72,
+        "macd_signal_threshold": 5.2950054572365784e-05,
+        "bollinger_threshold": 0.10510523218189649,
+        "atr_multiplier": 2.2054865908164007,
+        "min_signal_strength": 0.4858258354620272,
+        "risk_percentage": 1.3595128157272325
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 72, 'macd_signal_threshold': 5.2950054572365784e-05, 'bollinger_threshold': 0.10510523218189649, 'atr_multiplier': 2.2054865908164007, 'min_signal_strength': 0.4858258354620272, 'risk_percentage': 1.3595128157272325}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ]
+  ],
+  "all_results": [
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 8.533247399262804e-05,
+        "bollinger_threshold": 0.06362216749265406,
+        "atr_multiplier": 2.3574029810782235,
+        "min_signal_strength": 0.616251771609959,
+        "risk_percentage": 1.1397509299005828
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 70, 'macd_signal_threshold': 8.533247399262804e-05, 'bollinger_threshold': 0.06362216749265406, 'atr_multiplier': 2.3574029810782235, 'min_signal_strength': 0.616251771609959, 'risk_percentage': 1.1397509299005828}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 7.503656628809212e-05,
+        "bollinger_threshold": 0.07224936498082203,
+        "atr_multiplier": 2.053081384438377,
+        "min_signal_strength": 0.4079722446741922,
+        "risk_percentage": 0.7798634843191514
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 66, 'macd_signal_threshold': 7.503656628809212e-05, 'bollinger_threshold': 0.07224936498082203, 'atr_multiplier': 2.053081384438377, 'min_signal_strength': 0.4079722446741922, 'risk_percentage': 0.7798634843191514}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 34,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 0.00017178220975844576,
+        "bollinger_threshold": 0.18723769324952183,
+        "atr_multiplier": 2.014752488244883,
+        "min_signal_strength": 0.570026735459311,
+        "risk_percentage": 1.6917167286278065
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 34, 'rsi_overbought': 70, 'macd_signal_threshold': 0.00017178220975844576, 'bollinger_threshold': 0.18723769324952183, 'atr_multiplier': 2.014752488244883, 'min_signal_strength': 0.570026735459311, 'risk_percentage': 1.6917167286278065}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 24,
+        "rsi_overbought": 71,
+        "macd_signal_threshold": 0.00013080889113691757,
+        "bollinger_threshold": 0.13573288421771906,
+        "atr_multiplier": 1.6620432226708084,
+        "min_signal_strength": 0.5725595377405442,
+        "risk_percentage": 1.9113354770744522
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 24, 'rsi_overbought': 71, 'macd_signal_threshold': 0.00013080889113691757, 'bollinger_threshold': 0.13573288421771906, 'atr_multiplier': 1.6620432226708084, 'min_signal_strength': 0.5725595377405442, 'risk_percentage': 1.9113354770744522}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 74,
+        "macd_signal_threshold": 0.00013536478454219408,
+        "bollinger_threshold": 0.1963917667357199,
+        "atr_multiplier": 1.5993373361779006,
+        "min_signal_strength": 0.4900654566237256,
+        "risk_percentage": 0.7858325186091629
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 74, 'macd_signal_threshold': 0.00013536478454219408, 'bollinger_threshold': 0.1963917667357199, 'atr_multiplier': 1.5993373361779006, 'min_signal_strength': 0.4900654566237256, 'risk_percentage': 0.7858325186091629}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 29,
+        "rsi_overbought": 77,
+        "macd_signal_threshold": 0.00018805449011977463,
+        "bollinger_threshold": 0.07339384953303638,
+        "atr_multiplier": 1.8364509218431024,
+        "min_signal_strength": 0.47663115854271276,
+        "risk_percentage": 0.7352863815454256
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 29, 'rsi_overbought': 77, 'macd_signal_threshold': 0.00018805449011977463, 'bollinger_threshold': 0.07339384953303638, 'atr_multiplier': 1.8364509218431024, 'min_signal_strength': 0.47663115854271276, 'risk_percentage': 0.7352863815454256}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 0.00011431742284746408,
+        "bollinger_threshold": 0.08005119527617564,
+        "atr_multiplier": 1.7608608633256422,
+        "min_signal_strength": 0.6248916836748325,
+        "risk_percentage": 1.338596992046032
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 66, 'macd_signal_threshold': 0.00011431742284746408, 'bollinger_threshold': 0.08005119527617564, 'atr_multiplier': 1.7608608633256422, 'min_signal_strength': 0.6248916836748325, 'risk_percentage': 1.338596992046032}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 29,
+        "rsi_overbought": 73,
+        "macd_signal_threshold": 8.102357430008966e-05,
+        "bollinger_threshold": 0.1251859423011708,
+        "atr_multiplier": 1.6370318973050175,
+        "min_signal_strength": 0.46812871553279817,
+        "risk_percentage": 1.9455676017717642
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 29, 'rsi_overbought': 73, 'macd_signal_threshold': 8.102357430008966e-05, 'bollinger_threshold': 0.1251859423011708, 'atr_multiplier': 1.6370318973050175, 'min_signal_strength': 0.46812871553279817, 'risk_percentage': 1.9455676017717642}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 25,
+        "rsi_overbought": 80,
+        "macd_signal_threshold": 0.0001389622873214491,
+        "bollinger_threshold": 0.1783999293696259,
+        "atr_multiplier": 2.408732076685215,
+        "min_signal_strength": 0.4081641018995913,
+        "risk_percentage": 0.6311154350925541
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 25, 'rsi_overbought': 80, 'macd_signal_threshold': 0.0001389622873214491, 'bollinger_threshold': 0.1783999293696259, 'atr_multiplier': 2.408732076685215, 'min_signal_strength': 0.4081641018995913, 'risk_percentage': 0.6311154350925541}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 72,
+        "macd_signal_threshold": 5.2950054572365784e-05,
+        "bollinger_threshold": 0.10510523218189649,
+        "atr_multiplier": 2.2054865908164007,
+        "min_signal_strength": 0.4858258354620272,
+        "risk_percentage": 1.3595128157272325
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 72, 'macd_signal_threshold': 5.2950054572365784e-05, 'bollinger_threshold': 0.10510523218189649, 'atr_multiplier': 2.2054865908164007, 'min_signal_strength': 0.4858258354620272, 'risk_percentage': 1.3595128157272325}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 78,
+        "macd_signal_threshold": 8.930271840422075e-05,
+        "bollinger_threshold": 0.1541177049685406,
+        "atr_multiplier": 1.7259579021819327,
+        "min_signal_strength": 0.6533537567408474,
+        "risk_percentage": 0.6328741354346081
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 78, 'macd_signal_threshold': 8.930271840422075e-05, 'bollinger_threshold': 0.1541177049685406, 'atr_multiplier': 1.7259579021819327, 'min_signal_strength': 0.6533537567408474, 'risk_percentage': 0.6328741354346081}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 27,
+        "rsi_overbought": 75,
+        "macd_signal_threshold": 0.00012952087932865546,
+        "bollinger_threshold": 0.15498690728559927,
+        "atr_multiplier": 2.7513151209395468,
+        "min_signal_strength": 0.4947633147597934,
+        "risk_percentage": 1.2514017730534062
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 27, 'rsi_overbought': 75, 'macd_signal_threshold': 0.00012952087932865546, 'bollinger_threshold': 0.15498690728559927, 'atr_multiplier': 2.7513151209395468, 'min_signal_strength': 0.4947633147597934, 'risk_percentage': 1.2514017730534062}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 28,
+        "rsi_overbought": 68,
+        "macd_signal_threshold": 9.703312641201956e-05,
+        "bollinger_threshold": 0.11723978398688285,
+        "atr_multiplier": 2.180885694966506,
+        "min_signal_strength": 0.5331167490563261,
+        "risk_percentage": 0.689670541354501
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 28, 'rsi_overbought': 68, 'macd_signal_threshold': 9.703312641201956e-05, 'bollinger_threshold': 0.11723978398688285, 'atr_multiplier': 2.180885694966506, 'min_signal_strength': 0.5331167490563261, 'risk_percentage': 0.689670541354501}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 30,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 0.00018718994118361587,
+        "bollinger_threshold": 0.1260355316363453,
+        "atr_multiplier": 2.733360460298111,
+        "min_signal_strength": 0.4074649254091964,
+        "risk_percentage": 1.7667526380697818
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 30, 'rsi_overbought': 70, 'macd_signal_threshold': 0.00018718994118361587, 'bollinger_threshold': 0.1260355316363453, 'atr_multiplier': 2.733360460298111, 'min_signal_strength': 0.4074649254091964, 'risk_percentage': 1.7667526380697818}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 33,
+        "rsi_overbought": 68,
+        "macd_signal_threshold": 0.00014345181088366884,
+        "bollinger_threshold": 0.16322888695805055,
+        "atr_multiplier": 1.5596206256824463,
+        "min_signal_strength": 0.5095284218946031,
+        "risk_percentage": 1.989250021571178
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 33, 'rsi_overbought': 68, 'macd_signal_threshold': 0.00014345181088366884, 'bollinger_threshold': 0.16322888695805055, 'atr_multiplier': 1.5596206256824463, 'min_signal_strength': 0.5095284218946031, 'risk_percentage': 1.989250021571178}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 65,
+        "macd_signal_threshold": 0.00018056977104122116,
+        "bollinger_threshold": 0.14100418248817365,
+        "atr_multiplier": 2.531993835598961,
+        "min_signal_strength": 0.4014332466896223,
+        "risk_percentage": 1.3542466654253622
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 65, 'macd_signal_threshold': 0.00018056977104122116, 'bollinger_threshold': 0.14100418248817365, 'atr_multiplier': 2.531993835598961, 'min_signal_strength': 0.4014332466896223, 'risk_percentage': 1.3542466654253622}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 72,
+        "macd_signal_threshold": 0.00018383872884493137,
+        "bollinger_threshold": 0.15455225241165288,
+        "atr_multiplier": 1.7330703625591308,
+        "min_signal_strength": 0.6459880252610575,
+        "risk_percentage": 1.8996165402747094
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 72, 'macd_signal_threshold': 0.00018383872884493137, 'bollinger_threshold': 0.15455225241165288, 'atr_multiplier': 1.7330703625591308, 'min_signal_strength': 0.6459880252610575, 'risk_percentage': 1.8996165402747094}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 71,
+        "macd_signal_threshold": 0.00017911903449893248,
+        "bollinger_threshold": 0.1485799652185612,
+        "atr_multiplier": 2.591295470291092,
+        "min_signal_strength": 0.4006090399296189,
+        "risk_percentage": 0.6906626403877107
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 71, 'macd_signal_threshold': 0.00017911903449893248, 'bollinger_threshold': 0.1485799652185612, 'atr_multiplier': 2.591295470291092, 'min_signal_strength': 0.4006090399296189, 'risk_percentage': 0.6906626403877107}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 26,
+        "rsi_overbought": 74,
+        "macd_signal_threshold": 7.477144656518924e-05,
+        "bollinger_threshold": 0.092845354079993,
+        "atr_multiplier": 1.5585618910649077,
+        "min_signal_strength": 0.649108760618341,
+        "risk_percentage": 1.8019104855972303
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 26, 'rsi_overbought': 74, 'macd_signal_threshold': 7.477144656518924e-05, 'bollinger_threshold': 0.092845354079993, 'atr_multiplier': 1.5585618910649077, 'min_signal_strength': 0.649108760618341, 'risk_percentage': 1.8019104855972303}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 26,
+        "rsi_overbought": 70,
+        "macd_signal_threshold": 0.00010756105911908617,
+        "bollinger_threshold": 0.11828716655779382,
+        "atr_multiplier": 2.2338429312447574,
+        "min_signal_strength": 0.6623443177650896,
+        "risk_percentage": 1.403979909017792
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 26, 'rsi_overbought': 70, 'macd_signal_threshold': 0.00010756105911908617, 'bollinger_threshold': 0.11828716655779382, 'atr_multiplier': 2.2338429312447574, 'min_signal_strength': 0.6623443177650896, 'risk_percentage': 1.403979909017792}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 23,
+        "rsi_overbought": 78,
+        "macd_signal_threshold": 0.00017353845139590095,
+        "bollinger_threshold": 0.18212187293940524,
+        "atr_multiplier": 1.5157268186248765,
+        "min_signal_strength": 0.4568725149979884,
+        "risk_percentage": 1.9523311534517607
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 23, 'rsi_overbought': 78, 'macd_signal_threshold': 0.00017353845139590095, 'bollinger_threshold': 0.18212187293940524, 'atr_multiplier': 1.5157268186248765, 'min_signal_strength': 0.4568725149979884, 'risk_percentage': 1.9523311534517607}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 65,
+        "macd_signal_threshold": 5.068796263271675e-05,
+        "bollinger_threshold": 0.1680065428362159,
+        "atr_multiplier": 2.708850970418047,
+        "min_signal_strength": 0.6698624380139742,
+        "risk_percentage": 1.396233433652272
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 65, 'macd_signal_threshold': 5.068796263271675e-05, 'bollinger_threshold': 0.1680065428362159, 'atr_multiplier': 2.708850970418047, 'min_signal_strength': 0.6698624380139742, 'risk_percentage': 1.396233433652272}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 73,
+        "macd_signal_threshold": 5.5784637996081976e-05,
+        "bollinger_threshold": 0.16988960479683585,
+        "atr_multiplier": 2.898212313262837,
+        "min_signal_strength": 0.673102873410241,
+        "risk_percentage": 0.9642580331587871
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 73, 'macd_signal_threshold': 5.5784637996081976e-05, 'bollinger_threshold': 0.16988960479683585, 'atr_multiplier': 2.898212313262837, 'min_signal_strength': 0.673102873410241, 'risk_percentage': 0.9642580331587871}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 34,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 0.00015827116369158118,
+        "bollinger_threshold": 0.19362214476303669,
+        "atr_multiplier": 1.53668764545848,
+        "min_signal_strength": 0.5388269165150854,
+        "risk_percentage": 1.903393303544025
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 34, 'rsi_overbought': 66, 'macd_signal_threshold': 0.00015827116369158118, 'bollinger_threshold': 0.19362214476303669, 'atr_multiplier': 1.53668764545848, 'min_signal_strength': 0.5388269165150854, 'risk_percentage': 1.903393303544025}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 75,
+        "macd_signal_threshold": 6.438272340080895e-05,
+        "bollinger_threshold": 0.11354343069325432,
+        "atr_multiplier": 1.8000077310556153,
+        "min_signal_strength": 0.6220461914054508,
+        "risk_percentage": 1.2482149884778635
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 75, 'macd_signal_threshold': 6.438272340080895e-05, 'bollinger_threshold': 0.11354343069325432, 'atr_multiplier': 1.8000077310556153, 'min_signal_strength': 0.6220461914054508, 'risk_percentage': 1.2482149884778635}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 26,
+        "rsi_overbought": 74,
+        "macd_signal_threshold": 0.000195455889389991,
+        "bollinger_threshold": 0.1520494724237924,
+        "atr_multiplier": 2.347504547530509,
+        "min_signal_strength": 0.41168263081700723,
+        "risk_percentage": 0.5847328632801669
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 26, 'rsi_overbought': 74, 'macd_signal_threshold': 0.000195455889389991, 'bollinger_threshold': 0.1520494724237924, 'atr_multiplier': 2.347504547530509, 'min_signal_strength': 0.41168263081700723, 'risk_percentage': 0.5847328632801669}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 27,
+        "rsi_overbought": 80,
+        "macd_signal_threshold": 0.0001399934166772854,
+        "bollinger_threshold": 0.10510013006637398,
+        "atr_multiplier": 2.4495734222287124,
+        "min_signal_strength": 0.6339201988063732,
+        "risk_percentage": 1.5793850252465775
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 27, 'rsi_overbought': 80, 'macd_signal_threshold': 0.0001399934166772854, 'bollinger_threshold': 0.10510013006637398, 'atr_multiplier': 2.4495734222287124, 'min_signal_strength': 0.6339201988063732, 'risk_percentage': 1.5793850252465775}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 26,
+        "rsi_overbought": 74,
+        "macd_signal_threshold": 5.555016239695318e-05,
+        "bollinger_threshold": 0.05229853545676108,
+        "atr_multiplier": 2.8561859841138033,
+        "min_signal_strength": 0.41060903880043154,
+        "risk_percentage": 1.2706863977580225
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 26, 'rsi_overbought': 74, 'macd_signal_threshold': 5.555016239695318e-05, 'bollinger_threshold': 0.05229853545676108, 'atr_multiplier': 2.8561859841138033, 'min_signal_strength': 0.41060903880043154, 'risk_percentage': 1.2706863977580225}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 25,
+        "rsi_overbought": 77,
+        "macd_signal_threshold": 0.00012813423202423212,
+        "bollinger_threshold": 0.0826691730498289,
+        "atr_multiplier": 2.169027056232876,
+        "min_signal_strength": 0.41752378277201,
+        "risk_percentage": 1.5991839417039635
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 25, 'rsi_overbought': 77, 'macd_signal_threshold': 0.00012813423202423212, 'bollinger_threshold': 0.0826691730498289, 'atr_multiplier': 2.169027056232876, 'min_signal_strength': 0.41752378277201, 'risk_percentage': 1.5991839417039635}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 21,
+        "rsi_overbought": 69,
+        "macd_signal_threshold": 0.00010540900935976523,
+        "bollinger_threshold": 0.07166260687831436,
+        "atr_multiplier": 1.9935658098145952,
+        "min_signal_strength": 0.669946352664728,
+        "risk_percentage": 1.2086327450623267
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 21, 'rsi_overbought': 69, 'macd_signal_threshold': 0.00010540900935976523, 'bollinger_threshold': 0.07166260687831436, 'atr_multiplier': 1.9935658098145952, 'min_signal_strength': 0.669946352664728, 'risk_percentage': 1.2086327450623267}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 30,
+        "rsi_overbought": 68,
+        "macd_signal_threshold": 8.449184103605661e-05,
+        "bollinger_threshold": 0.15972919048878642,
+        "atr_multiplier": 1.9311180360666775,
+        "min_signal_strength": 0.6494917980715735,
+        "risk_percentage": 0.9545431856097265
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 30, 'rsi_overbought': 68, 'macd_signal_threshold': 8.449184103605661e-05, 'bollinger_threshold': 0.15972919048878642, 'atr_multiplier': 1.9311180360666775, 'min_signal_strength': 0.6494917980715735, 'risk_percentage': 0.9545431856097265}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 23,
+        "rsi_overbought": 69,
+        "macd_signal_threshold": 0.00016936934570739863,
+        "bollinger_threshold": 0.128803758934166,
+        "atr_multiplier": 2.3482458986321353,
+        "min_signal_strength": 0.6801099088779641,
+        "risk_percentage": 1.6687758281658036
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 23, 'rsi_overbought': 69, 'macd_signal_threshold': 0.00016936934570739863, 'bollinger_threshold': 0.128803758934166, 'atr_multiplier': 2.3482458986321353, 'min_signal_strength': 0.6801099088779641, 'risk_percentage': 1.6687758281658036}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 20,
+        "rsi_overbought": 65,
+        "macd_signal_threshold": 0.00019771025158085283,
+        "bollinger_threshold": 0.19015633824685457,
+        "atr_multiplier": 1.6028843598942837,
+        "min_signal_strength": 0.48346083060366785,
+        "risk_percentage": 1.1940690836038452
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 20, 'rsi_overbought': 65, 'macd_signal_threshold': 0.00019771025158085283, 'bollinger_threshold': 0.19015633824685457, 'atr_multiplier': 1.6028843598942837, 'min_signal_strength': 0.48346083060366785, 'risk_percentage': 1.1940690836038452}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 34,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 0.00013578290949846502,
+        "bollinger_threshold": 0.11849556072816593,
+        "atr_multiplier": 1.6163346126777975,
+        "min_signal_strength": 0.41761688217316606,
+        "risk_percentage": 1.6712035873797717
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 34, 'rsi_overbought': 66, 'macd_signal_threshold': 0.00013578290949846502, 'bollinger_threshold': 0.11849556072816593, 'atr_multiplier': 1.6163346126777975, 'min_signal_strength': 0.41761688217316606, 'risk_percentage': 1.6712035873797717}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 32,
+        "rsi_overbought": 67,
+        "macd_signal_threshold": 0.00014051008726292873,
+        "bollinger_threshold": 0.10250793809375726,
+        "atr_multiplier": 1.8165877822290777,
+        "min_signal_strength": 0.46254888473376854,
+        "risk_percentage": 1.9477214168963704
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 32, 'rsi_overbought': 67, 'macd_signal_threshold': 0.00014051008726292873, 'bollinger_threshold': 0.10250793809375726, 'atr_multiplier': 1.8165877822290777, 'min_signal_strength': 0.46254888473376854, 'risk_percentage': 1.9477214168963704}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 25,
+        "rsi_overbought": 69,
+        "macd_signal_threshold": 0.0001121788144185596,
+        "bollinger_threshold": 0.19701359309907307,
+        "atr_multiplier": 1.6000800498597245,
+        "min_signal_strength": 0.5467370542822954,
+        "risk_percentage": 1.3180013745246428
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 25, 'rsi_overbought': 69, 'macd_signal_threshold': 0.0001121788144185596, 'bollinger_threshold': 0.19701359309907307, 'atr_multiplier': 1.6000800498597245, 'min_signal_strength': 0.5467370542822954, 'risk_percentage': 1.3180013745246428}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 26,
+        "rsi_overbought": 68,
+        "macd_signal_threshold": 0.00017229581403281995,
+        "bollinger_threshold": 0.1800455495525895,
+        "atr_multiplier": 2.1613513737737056,
+        "min_signal_strength": 0.6150791973965883,
+        "risk_percentage": 1.291294926431648
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 26, 'rsi_overbought': 68, 'macd_signal_threshold': 0.00017229581403281995, 'bollinger_threshold': 0.1800455495525895, 'atr_multiplier': 2.1613513737737056, 'min_signal_strength': 0.6150791973965883, 'risk_percentage': 1.291294926431648}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 34,
+        "rsi_overbought": 79,
+        "macd_signal_threshold": 0.00018822851579818197,
+        "bollinger_threshold": 0.15646343505492905,
+        "atr_multiplier": 2.3858119910680107,
+        "min_signal_strength": 0.6229635712636956,
+        "risk_percentage": 1.265964535850788
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 34, 'rsi_overbought': 79, 'macd_signal_threshold': 0.00018822851579818197, 'bollinger_threshold': 0.15646343505492905, 'atr_multiplier': 2.3858119910680107, 'min_signal_strength': 0.6229635712636956, 'risk_percentage': 1.265964535850788}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 35,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 8.396455520876683e-05,
+        "bollinger_threshold": 0.14331481176462404,
+        "atr_multiplier": 2.9697280277120397,
+        "min_signal_strength": 0.4705835324473547,
+        "risk_percentage": 0.920271978056421
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 35, 'rsi_overbought': 66, 'macd_signal_threshold': 8.396455520876683e-05, 'bollinger_threshold': 0.14331481176462404, 'atr_multiplier': 2.9697280277120397, 'min_signal_strength': 0.4705835324473547, 'risk_percentage': 0.920271978056421}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 20,
+        "rsi_overbought": 67,
+        "macd_signal_threshold": 0.00016896050711549378,
+        "bollinger_threshold": 0.18177147331041388,
+        "atr_multiplier": 2.4640791967581324,
+        "min_signal_strength": 0.6857574269290778,
+        "risk_percentage": 0.6088913493206911
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 20, 'rsi_overbought': 67, 'macd_signal_threshold': 0.00016896050711549378, 'bollinger_threshold': 0.18177147331041388, 'atr_multiplier': 2.4640791967581324, 'min_signal_strength': 0.6857574269290778, 'risk_percentage': 0.6088913493206911}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 23,
+        "rsi_overbought": 77,
+        "macd_signal_threshold": 6.830078700007604e-05,
+        "bollinger_threshold": 0.11399508788243556,
+        "atr_multiplier": 2.5571991191987413,
+        "min_signal_strength": 0.5411425620218584,
+        "risk_percentage": 0.7060329329248336
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 23, 'rsi_overbought': 77, 'macd_signal_threshold': 6.830078700007604e-05, 'bollinger_threshold': 0.11399508788243556, 'atr_multiplier': 2.5571991191987413, 'min_signal_strength': 0.5411425620218584, 'risk_percentage': 0.7060329329248336}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 27,
+        "rsi_overbought": 80,
+        "macd_signal_threshold": 9.590838468167916e-05,
+        "bollinger_threshold": 0.10325548216273756,
+        "atr_multiplier": 1.8822172856828412,
+        "min_signal_strength": 0.5562507876352982,
+        "risk_percentage": 0.6467228616586956
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 27, 'rsi_overbought': 80, 'macd_signal_threshold': 9.590838468167916e-05, 'bollinger_threshold': 0.10325548216273756, 'atr_multiplier': 1.8822172856828412, 'min_signal_strength': 0.5562507876352982, 'risk_percentage': 0.6467228616586956}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 77,
+        "macd_signal_threshold": 5.534974151127755e-05,
+        "bollinger_threshold": 0.05912375341282333,
+        "atr_multiplier": 1.5175152473661169,
+        "min_signal_strength": 0.46544167482332865,
+        "risk_percentage": 0.5980091199525607
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 77, 'macd_signal_threshold': 5.534974151127755e-05, 'bollinger_threshold': 0.05912375341282333, 'atr_multiplier': 1.5175152473661169, 'min_signal_strength': 0.46544167482332865, 'risk_percentage': 0.5980091199525607}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 76,
+        "macd_signal_threshold": 0.00012756774354971578,
+        "bollinger_threshold": 0.16146423265840298,
+        "atr_multiplier": 1.9487541022679353,
+        "min_signal_strength": 0.6532316173218957,
+        "risk_percentage": 1.8257260212491264
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 76, 'macd_signal_threshold': 0.00012756774354971578, 'bollinger_threshold': 0.16146423265840298, 'atr_multiplier': 1.9487541022679353, 'min_signal_strength': 0.6532316173218957, 'risk_percentage': 1.8257260212491264}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 22,
+        "rsi_overbought": 72,
+        "macd_signal_threshold": 9.250567112458789e-05,
+        "bollinger_threshold": 0.08338216736432552,
+        "atr_multiplier": 2.173258450916685,
+        "min_signal_strength": 0.41986599694049775,
+        "risk_percentage": 1.3522094770347652
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 22, 'rsi_overbought': 72, 'macd_signal_threshold': 9.250567112458789e-05, 'bollinger_threshold': 0.08338216736432552, 'atr_multiplier': 2.173258450916685, 'min_signal_strength': 0.41986599694049775, 'risk_percentage': 1.3522094770347652}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 30,
+        "rsi_overbought": 73,
+        "macd_signal_threshold": 8.668009878015976e-05,
+        "bollinger_threshold": 0.16901994803870785,
+        "atr_multiplier": 2.8555007342042753,
+        "min_signal_strength": 0.5006041863601584,
+        "risk_percentage": 1.1928840714226325
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 30, 'rsi_overbought': 73, 'macd_signal_threshold': 8.668009878015976e-05, 'bollinger_threshold': 0.16901994803870785, 'atr_multiplier': 2.8555007342042753, 'min_signal_strength': 0.5006041863601584, 'risk_percentage': 1.1928840714226325}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 32,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 0.00016996877730895917,
+        "bollinger_threshold": 0.08168444857336177,
+        "atr_multiplier": 2.0615213243431754,
+        "min_signal_strength": 0.5495888357247163,
+        "risk_percentage": 0.5081226898122099
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 32, 'rsi_overbought': 66, 'macd_signal_threshold': 0.00016996877730895917, 'bollinger_threshold': 0.08168444857336177, 'atr_multiplier': 2.0615213243431754, 'min_signal_strength': 0.5495888357247163, 'risk_percentage': 0.5081226898122099}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 33,
+        "rsi_overbought": 73,
+        "macd_signal_threshold": 0.00010570469395823562,
+        "bollinger_threshold": 0.12018359958581663,
+        "atr_multiplier": 2.369641478550268,
+        "min_signal_strength": 0.4592508083613402,
+        "risk_percentage": 0.665978112207301
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 33, 'rsi_overbought': 73, 'macd_signal_threshold': 0.00010570469395823562, 'bollinger_threshold': 0.12018359958581663, 'atr_multiplier': 2.369641478550268, 'min_signal_strength': 0.4592508083613402, 'risk_percentage': 0.665978112207301}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 68,
+        "macd_signal_threshold": 5.166886936971464e-05,
+        "bollinger_threshold": 0.1807381425547323,
+        "atr_multiplier": 2.8875492479343485,
+        "min_signal_strength": 0.6104242426167816,
+        "risk_percentage": 0.7122970507198123
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 68, 'macd_signal_threshold': 5.166886936971464e-05, 'bollinger_threshold': 0.1807381425547323, 'atr_multiplier': 2.8875492479343485, 'min_signal_strength': 0.6104242426167816, 'risk_percentage': 0.7122970507198123}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ],
+    [
+      {
+        "rsi_oversold": 31,
+        "rsi_overbought": 66,
+        "macd_signal_threshold": 7.091804899053776e-05,
+        "bollinger_threshold": 0.08106167196420005,
+        "atr_multiplier": 2.782777562092745,
+        "min_signal_strength": 0.43748222383341984,
+        "risk_percentage": 1.8600975226872167
+      },
+      0.0,
+      "BacktestResult(total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0, profit_factor=0.0, total_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0, avg_trade_duration=0, avg_win=0, avg_loss=0, largest_win=0, largest_loss=0, consecutive_wins=0, consecutive_losses=0, equity_curve=[10000.0], trade_history=[], parameter_set={'rsi_oversold': 31, 'rsi_overbought': 66, 'macd_signal_threshold': 7.091804899053776e-05, 'bollinger_threshold': 0.08106167196420005, 'atr_multiplier': 2.782777562092745, 'min_signal_strength': 0.43748222383341984, 'risk_percentage': 1.8600975226872167}, start_date=datetime.datetime(2025, 6, 20, 1, 44, 12, 47331), end_date=datetime.datetime(2025, 8, 19, 1, 44, 12, 47331), initial_balance=10000.0, final_balance=10000.0)"
+    ]
+  ]
+}

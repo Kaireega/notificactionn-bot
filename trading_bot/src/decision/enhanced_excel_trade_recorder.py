@@ -4,16 +4,17 @@ Enhanced Excel Trade Recorder - Records complete AI outputs and decision data.
 import pandas as pd
 import json
 import os
+import traceback
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from decimal import Decimal
 from pathlib import Path
 
-from src.core.models import (
+from ..core.models import (
     TradeDecision, TradeRecommendation, MarketContext, 
     TechnicalIndicators, CandleData, TimeFrame
 )
-from src.utils.logger import get_logger
+from ..utils.logger import get_logger
 
 
 class EnhancedExcelTradeRecorder:
@@ -118,18 +119,23 @@ class EnhancedExcelTradeRecorder:
         """Record a complete trade decision with ALL data that went into it."""
         
         try:
-            timestamp = datetime.utcnow()
+            print(f"📝 [DEBUG] Recording complete trade decision for {decision.recommendation.pair}...")
+            from datetime import datetime, timezone
+            timestamp = datetime.now(timezone.utc)
             
             # Record trade decision
+            print("📝 [DEBUG] Creating trade record...")
             trade_record = self._create_trade_record(decision, timestamp)
             self.trades_data.append(trade_record)
             
             # Record market conditions
+            print("📝 [DEBUG] Creating market record...")
             market_record = self._create_market_record(market_context, decision.recommendation.pair, timestamp)
             self.market_conditions_data.append(market_record)
             
             # Record technical indicators for each timeframe
             if technical_indicators:
+                print(f"📝 [DEBUG] Recording {len(technical_indicators)} technical indicator sets...")
                 for timeframe, indicators in technical_indicators.items():
                     indicators_record = self._create_indicators_record(
                         indicators, decision.recommendation.pair, timeframe, timestamp
@@ -138,11 +144,13 @@ class EnhancedExcelTradeRecorder:
             
             # Record AI outputs
             if ai_outputs:
+                print("📝 [DEBUG] Recording AI outputs...")
                 ai_record = self._create_ai_outputs_record(ai_outputs, decision, timestamp)
                 self.ai_outputs_data.append(ai_record)
             
             # Record multi-timeframe analysis
             if multi_timeframe_analysis:
+                print(f"📝 [DEBUG] Recording {len(multi_timeframe_analysis)} multi-timeframe analyses...")
                 for timeframe, analysis in multi_timeframe_analysis.items():
                     mtf_record = self._create_multi_timeframe_record(
                         analysis, decision.recommendation.pair, timeframe, timestamp
@@ -151,21 +159,27 @@ class EnhancedExcelTradeRecorder:
             
             # Record risk assessment
             if risk_assessment:
+                print("📝 [DEBUG] Recording risk assessment...")
                 risk_record = self._create_risk_assessment_record(risk_assessment, decision, timestamp)
                 self.risk_assessment_data.append(risk_record)
             
             # Record raw data
             if raw_data:
+                print("📝 [DEBUG] Recording raw data...")
                 raw_record = self._create_raw_data_record(raw_data, decision, timestamp)
                 self.raw_data_data.append(raw_record)
             
             # Write to Excel every 5 records (to avoid memory issues)
             if len(self.trades_data) % 5 == 0:
+                print("📝 [DEBUG] Writing batch to Excel...")
                 self._write_to_excel()
             
+            print(f"✅ [DEBUG] Successfully recorded complete trade decision for {decision.recommendation.pair}")
             self.logger.info(f"Recorded complete trade decision for {decision.recommendation.pair}")
             
         except Exception as e:
+            print(f"❌ [DEBUG] Error recording trade: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error recording trade: {e}")
     
     def _create_trade_record(self, decision: TradeDecision, timestamp: datetime) -> Dict[str, Any]:
@@ -269,14 +283,14 @@ class EnhancedExcelTradeRecorder:
         self, 
         analysis: Dict[str, Any], 
         pair: str, 
-        timeframe: TimeFrame, 
+        timeframe: str, 
         timestamp: datetime
     ) -> Dict[str, Any]:
         """Create a multi-timeframe analysis record."""
         return {
             "timestamp": timestamp.isoformat(),
             "pair": pair,
-            "timeframe": timeframe.value,
+            "timeframe": timeframe,
             "signal_type": analysis.get("signal_type", ""),
             "signal_strength": float(analysis.get("signal_strength", 0)),
             "trend_direction": float(analysis.get("trend_direction", 0)),

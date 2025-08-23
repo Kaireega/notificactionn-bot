@@ -2,6 +2,7 @@
 Data Layer - Collects and manages market data.
 """
 import asyncio
+import traceback
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
@@ -13,9 +14,9 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent.parent.parent
 sys.path.append(str(root_dir))
 
-from src.core.models import CandleData, TimeFrame, MarketContext, MarketCondition
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import CandleData, TimeFrame, MarketContext, MarketCondition
+from ..utils.config import Config
+from ..utils.logger import get_logger
 
 # Import OANDA API
 try:
@@ -46,9 +47,9 @@ class DataLayer:
         # OANDA API integration
         if OANDA_AVAILABLE:
             self.oanda_api = OandaApi()
-            # Force mock data for testing - change this to True when ready for real data
-            self.use_real_data = False
-            self.logger.info("OANDA API available but using mock data for testing")
+            # Use real OANDA data - set to True for live trading
+            self.use_real_data = True
+            self.logger.info("Using real OANDA API data")
         else:
             self.oanda_api = None
             self.use_real_data = False
@@ -68,30 +69,36 @@ class DataLayer:
         self._is_running = False
         self._update_task = None
     
-    async def start(self) -> None:
+    async def _validate_oanda_credentials(self) -> bool:
+        """Validate OANDA API credentials."""
+        try:
+            if self.use_real_data and self.oanda_api:
+                return self.oanda_api.validate_credentials()
+            return True
+        except Exception as e:
+            self.logger.error(f"Error validating OANDA credentials: {e}")
+            return False
+
+    async def start(self):
         """Start the data layer."""
-        self.logger.info("Starting data layer...")
-        self._is_running = True
-        
-        # Validate OANDA credentials if using real data
-        if self.use_real_data and self.oanda_api:
-            try:
-                if not self.oanda_api.validate_credentials():
-                    self.logger.error("OANDA API credentials are invalid, falling back to mock data")
-                    self.use_real_data = False
-                else:
-                    self.logger.info("OANDA API credentials validated successfully")
-            except Exception as e:
-                self.logger.error(f"Error validating OANDA credentials: {e}")
-                self.use_real_data = False
-        
-        # Initialize data for all pairs
-        for pair in self.config.trading_pairs:
-            await self._initialize_pair_data(pair)
-        
-        # Start data update loop
-        self._update_task = asyncio.create_task(self._data_update_loop())
-        self.logger.info("Data layer started successfully")
+        try:
+            # Validate OANDA credentials
+            if not await self._validate_oanda_credentials():
+                raise Exception("Invalid OANDA credentials")
+            
+            # Initialize data for all trading pairs
+            for pair in self.config.trading_pairs:
+                await self._initialize_pair_data(pair)
+            
+            # Start data update loop
+            asyncio.create_task(self._data_update_loop())
+            
+            self.logger.info("Data layer started successfully")
+            
+        except Exception as e:
+            print(f"❌ [DEBUG] Error starting data layer: {e}")
+            self.logger.error(f"Error starting data layer: {e}")
+            raise
     
     async def stop(self) -> None:
         """Stop the data layer."""
@@ -145,24 +152,32 @@ class DataLayer:
     
     async def _initialize_pair_data(self, pair: str) -> None:
         """Initialize data for a trading pair."""
+        print(f"📊 [DEBUG] Initializing data for {pair}")
         self.logger.info(f"Initializing data for {pair}")
         
         # Initialize candle storage
         if pair not in self._candles:
             self._candles[pair] = {}
+            print(f"📊 [DEBUG] {pair}: Created candle storage")
         
         # Get historical data for each timeframe
+        print(f"📊 [DEBUG] {pair}: Getting data for {len(self.config.timeframes)} timeframes: {[tf.value for tf in self.config.timeframes]}")
         for timeframe in self.config.timeframes:
+            print(f"📊 [DEBUG] {pair}: Getting {timeframe.value} data...")
             if self.use_real_data and self.oanda_api:
                 # Get real data from API
+                print(f"📊 [DEBUG] {pair}: Using real OANDA API data")
                 candles = await self._get_real_candles(pair, timeframe, 200)
             else:
                 # Generate mock data for testing
+                print(f"📊 [DEBUG] {pair}: Using mock data")
                 candles = await self._generate_historical_candles(pair, timeframe)
             
             self._candles[pair][timeframe] = candles
+            print(f"📊 [DEBUG] {pair}: {timeframe.value} - {len(candles)} candles loaded")
         
         # Initialize market context
+        print(f"🌍 [DEBUG] {pair}: Initializing market context...")
         self._market_contexts[pair] = MarketContext(
             condition=MarketCondition.RANGING,
             volatility=0.001,
@@ -170,29 +185,42 @@ class DataLayer:
             news_sentiment=0.0,
             timestamp=datetime.now(timezone.utc)
         )
+        print(f"✅ [DEBUG] {pair}: Market context initialized")
     
     async def _generate_historical_candles(self, pair: str, timeframe: TimeFrame) -> List[CandleData]:
-        """Generate historical candle data for testing."""
+        """Generate historical candle data for testing with more volatility to trigger trades."""
         candles = []
         base_price = self._base_prices.get(pair, Decimal('1.0000'))
         
-        # Generate 200 candles (about 1 week of M5 data)
+        # Generate 200 candles with more volatile patterns
+        current_price = base_price
+        trend_direction = random.choice([-1, 1])  # Random trend direction
+        trend_strength = random.uniform(0.5, 1.0)  # Trend strength
+        
         for i in range(200):
             # Calculate timestamp
             minutes_back = (200 - i) * 5  # 5-minute candles
             timestamp = datetime.now(timezone.utc) - timedelta(minutes=minutes_back)
             
-            # Generate price movement proportional to base price
-            price_change_pct = random.uniform(-0.001, 0.001)  # 0.1% movement
-            price_change = base_price * Decimal(str(price_change_pct))
-            current_price = base_price + price_change
+            # Create more volatile price movements with trends
+            if i < 50:  # First 50 candles - strong trend
+                price_change_pct = random.uniform(-0.005, 0.005) * trend_direction * trend_strength
+            elif i < 100:  # Next 50 candles - reversal
+                price_change_pct = random.uniform(-0.003, 0.003) * (-trend_direction) * 0.7
+            elif i < 150:  # Next 50 candles - consolidation
+                price_change_pct = random.uniform(-0.002, 0.002)
+            else:  # Last 50 candles - breakout
+                price_change_pct = random.uniform(-0.008, 0.008) * trend_direction * 1.2
             
-            # Generate OHLCV with proportional movements
+            price_change = current_price * Decimal(str(price_change_pct))
+            current_price = current_price + price_change
+            
+            # Generate OHLCV with more realistic movements
             open_price = current_price
-            high_price = current_price + (base_price * Decimal(str(random.uniform(0, 0.0005))))
-            low_price = current_price - (base_price * Decimal(str(random.uniform(0, 0.0005))))
-            close_price = current_price + (base_price * Decimal(str(random.uniform(-0.0003, 0.0003))))
-            volume = Decimal(str(random.uniform(1000, 5000)))
+            high_price = current_price + (current_price * Decimal(str(random.uniform(0, 0.002))))
+            low_price = current_price - (current_price * Decimal(str(random.uniform(0, 0.002))))
+            close_price = current_price + (current_price * Decimal(str(random.uniform(-0.001, 0.001))))
+            volume = Decimal(str(random.uniform(2000, 8000)))
             
             candle = CandleData(
                 timestamp=timestamp,
@@ -211,32 +239,50 @@ class DataLayer:
     
     async def _data_update_loop(self) -> None:
         """Main data update loop."""
+        print("🔄 [DEBUG] Data update loop started")
+        update_count = 0
         while self._is_running:
             try:
+                update_count += 1
+                print(f"🔄 [DEBUG] Data update iteration {update_count}")
                 await self._update_all_data()
+                print(f"⏰ [DEBUG] Waiting {self.config.data_update_frequency} seconds for next update...")
                 await asyncio.sleep(self.config.data_update_frequency)
             except Exception as e:
+                print(f"❌ [DEBUG] Error in data update loop: {e}")
+                print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
                 self.logger.error(f"Error in data update loop: {e}")
                 await asyncio.sleep(5)  # Wait before retrying
     
     async def _update_all_data(self) -> None:
         """Update data for all pairs."""
+        print(f"📊 [DEBUG] Updating data for {len(self.config.trading_pairs)} pairs")
         for pair in self.config.trading_pairs:
+            print(f"📊 [DEBUG] Updating data for {pair}...")
             await self._update_pair_data(pair)
+            print(f"✅ [DEBUG] Data updated for {pair}")
     
     async def _update_pair_data(self, pair: str) -> None:
         """Update data for a specific pair."""
         try:
+            print(f"📊 [DEBUG] {pair}: Starting data update...")
+            
             # Update candles for each timeframe
             for timeframe in self.config.timeframes:
+                print(f"📊 [DEBUG] {pair}: Updating {timeframe.value} data...")
                 if self.use_real_data and self.oanda_api:
                     # Get fresh real data from API
+                    print(f"📊 [DEBUG] {pair}: Getting fresh real data for {timeframe.value}")
                     new_candles = await self._get_real_candles(pair, timeframe, 50)
                     if new_candles:
                         # Replace with fresh data, keeping only the latest candles
                         self._candles[pair][timeframe] = new_candles[-1000:]  # Keep last 1000
+                        print(f"📊 [DEBUG] {pair}: {timeframe.value} - Updated with {len(new_candles)} candles")
+                    else:
+                        print(f"⚠️ [DEBUG] {pair}: {timeframe.value} - No new candles received")
                 else:
                     # Generate new mock candle
+                    print(f"📊 [DEBUG] {pair}: Generating new mock candle for {timeframe.value}")
                     new_candle = await self._generate_new_candle(pair, timeframe)
                     if new_candle:
                         self._candles[pair][timeframe].append(new_candle)
@@ -244,11 +290,18 @@ class DataLayer:
                         # Keep only last 1000 candles to prevent memory issues
                         if len(self._candles[pair][timeframe]) > 1000:
                             self._candles[pair][timeframe] = self._candles[pair][timeframe][-1000:]
+                        print(f"📊 [DEBUG] {pair}: {timeframe.value} - Added new mock candle")
+                    else:
+                        print(f"⚠️ [DEBUG] {pair}: {timeframe.value} - Failed to generate mock candle")
             
             # Update market context
+            print(f"🌍 [DEBUG] {pair}: Updating market context...")
             await self._update_market_context(pair)
+            print(f"✅ [DEBUG] {pair}: Market context updated")
                 
         except Exception as e:
+            print(f"❌ [DEBUG] {pair}: Error updating data: {e}")
+            print(f"❌ [DEBUG] {pair}: Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error updating data for {pair}: {e}")
     
     async def _generate_new_candle(self, pair: str, timeframe: TimeFrame) -> Optional[CandleData]:
@@ -410,21 +463,59 @@ class DataLayer:
         
         return trend_strength
     
+    async def get_all_data(self) -> Dict[str, Dict[TimeFrame, List[CandleData]]]:
+        """Get candles data for all pairs and timeframes."""
+        result = {}
+        
+        for pair in self.config.trading_pairs:
+            try:
+                # Get candles for all timeframes
+                candles = {}
+                for timeframe in self.config.timeframes:
+                    timeframe_candles = await self.get_candles(pair, timeframe, 50)
+                    candles[timeframe] = timeframe_candles
+                
+                result[pair] = candles
+                
+            except Exception as e:
+                self.logger.error(f"Error getting data for {pair}: {e}")
+                result[pair] = {}
+        
+        return result
+
     async def get_all_pairs_data(self) -> Dict[str, Dict[str, Any]]:
         """Get data for all pairs."""
         result = {}
         
         for pair in self.config.trading_pairs:
-            result[pair] = {
-                'current_price': await self.get_current_price(pair),
-                'market_context': await self.get_market_context(pair),
-                'candles': {
-                    timeframe.value: await self.get_candles(pair, timeframe, 50)
-                    for timeframe in self.config.timeframes
+            try:
+                # Get current price
+                current_price = await self.get_current_price(pair)
+                
+                # Get market context
+                market_context = await self.get_market_context(pair)
+                
+                # Get candles for all timeframes
+                candles = {}
+                for timeframe in self.config.timeframes:
+                    timeframe_candles = await self.get_candles(pair, timeframe, 50)
+                    candles[timeframe.value] = timeframe_candles
+                
+                result[pair] = {
+                    'current_price': current_price,
+                    'market_context': market_context,
+                    'candles': candles
                 }
-            }
+                
+            except Exception as e:
+                self.logger.error(f"❌ Error getting data for {pair}: {e}")
+                result[pair] = {
+                    'current_price': None,
+                    'market_context': None,
+                    'candles': {}
+                }
         
-        return result 
+        return result
 
     async def _get_real_candles(self, pair: str, timeframe: TimeFrame, count: int) -> List[CandleData]:
         """Get real candle data from OANDA API."""

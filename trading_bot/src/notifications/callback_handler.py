@@ -2,7 +2,9 @@
 Callback Handler - Processes user responses to trade notifications.
 """
 import asyncio
+import threading
 import logging
+import traceback
 from datetime import datetime
 from typing import Dict, Optional, Any
 from decimal import Decimal
@@ -10,9 +12,9 @@ from decimal import Decimal
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-from src.core.models import UserResponse, TradeDecision, NotificationMessage
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import UserResponse, TradeDecision, NotificationMessage
+from ..utils.config import Config
+from ..utils.logger import get_logger
 
 
 class CallbackHandler:
@@ -28,6 +30,9 @@ class CallbackHandler:
         
         # Initialize Telegram application
         self._init_telegram_app()
+        # Polling thread state
+        self._polling_thread: Optional[threading.Thread] = None
+        self._polling_started: bool = False
     
     def _init_telegram_app(self):
         """Initialize Telegram application with handlers."""
@@ -51,30 +56,52 @@ class CallbackHandler:
     async def start(self):
         """Start the callback handler."""
         try:
-            if self.app:
-                await self.app.initialize()
-                await self.app.start()
-                # Don't start polling immediately - only when needed
-                self.logger.info("Callback handler initialized (polling disabled)")
+            # Initialize the webhook
+            await self._setup_webhook()
+            self.logger.info("Callback handler started successfully")
+            
         except Exception as e:
+            print(f"❌ [DEBUG] Error starting callback handler: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error starting callback handler: {e}")
+            raise
     
     async def _start_polling(self):
-        """Start polling for updates."""
+        """Start polling in a dedicated background thread to avoid event-loop conflicts."""
         try:
-            if self.app and not hasattr(self, '_polling_started'):
-                await self.app.updater.start_polling(poll_interval=10.0)
+            if self.app and not self._polling_started:
+                # Launch a daemon thread that blocks in run_polling()
+                def _worker():
+                    try:
+                        # run_polling is a blocking lifecycle helper in PTB v20
+                        self.app.run_polling()
+                    except Exception as e:
+                        # Log inside thread
+                        try:
+                            self.logger.error(f"Polling thread error: {e}")
+                        except Exception:
+                            pass
+                self._polling_thread = threading.Thread(target=_worker, name="telegram-polling", daemon=True)
+                self._polling_thread.start()
                 self._polling_started = True
-                self.logger.info("Started polling for trade responses")
+                self.logger.info("Started polling for trade responses (background thread)")
         except Exception as e:
             self.logger.error(f"Error starting polling: {e}")
     
     async def _stop_polling(self):
-        """Stop polling for updates."""
+        """Stop polling for updates and join the background thread."""
         try:
-            if self.app and hasattr(self, '_polling_started') and self._polling_started:
-                await self.app.updater.stop()
+            if self.app and self._polling_started:
+                try:
+                    # Schedule stop inside Application's loop
+                    self.app.create_task(self.app.stop())
+                except Exception:
+                    pass
+                # Join thread briefly
+                if self._polling_thread and self._polling_thread.is_alive():
+                    self._polling_thread.join(timeout=5)
                 self._polling_started = False
+                self._polling_thread = None
                 self.logger.info("Stopped polling (no active trade notifications)")
         except Exception as e:
             self.logger.error(f"Error stopping polling: {e}")
@@ -83,13 +110,33 @@ class CallbackHandler:
         """Stop the callback handler."""
         try:
             if self.app:
-                if hasattr(self, '_polling_started') and self._polling_started:
-                    await self.app.updater.stop()
-                await self.app.stop()
-                await self.app.shutdown()
+                if getattr(self, '_polling_started', False):
+                    await self._stop_polling()
                 self.logger.info("Callback handler stopped")
         except Exception as e:
             self.logger.error(f"Error stopping callback handler: {e}")
+
+    async def _setup_webhook(self):
+        """Setup Telegram webhook if configured, otherwise start polling."""
+        try:
+            # If webhook URL is provided, try to set it, else fallback to polling
+            webhook_url = getattr(self.config, 'telegram_webhook_url', None)
+            if self.app and webhook_url:
+                try:
+                    await self.app.bot.set_webhook(url=webhook_url)
+                    self.logger.info("Telegram webhook set successfully")
+                    return
+                except Exception as e:
+                    self.logger.warning(f"Failed to set webhook, falling back to polling: {e}")
+            # Fallback to polling
+            await self._start_polling()
+        except Exception as e:
+            self.logger.error(f"Error setting up webhook/polling: {e}")
+            # Ensure we attempt polling as a last resort
+            try:
+                await self._start_polling()
+            except Exception:
+                pass
     
     def register_notification(self, notification: NotificationMessage):
         """Register a notification for response handling."""
@@ -174,11 +221,12 @@ class CallbackHandler:
             notification = self.active_notifications[trade_id]
             
             # Create user response
+            from datetime import datetime, timezone
             user_response = UserResponse(
                 notification_id=notification.id,
                 action=action,
                 user_id=user_id,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             # Handle edit action
@@ -247,9 +295,12 @@ class CallbackHandler:
         try:
             trade_decision = notification.trade_decision
             
-            # Here you would integrate with your trading execution layer
-            # For now, we'll just send a confirmation message
+            # Execute trade through notification layer's executor if available
+            trade_id = None
+            if hasattr(self.notification_layer, 'execute_approved_trade'):
+                trade_id = await self.notification_layer.execute_approved_trade(trade_decision)
             
+            from datetime import datetime, timezone
             message = f"""
 ✅ Trade Accepted!
 
@@ -259,9 +310,9 @@ class CallbackHandler:
 🎯 Take Profit: {trade_decision.recommendation.take_profit:.5f}
 📈 Position Size: {trade_decision.position_size}
 
-⏰ Executed: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ Executed: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
 
-Trade is being executed...
+Trade {'executed' if trade_id else 'execution requested'}...
 """
             
             await self._send_message(chat_id, message)
@@ -286,6 +337,7 @@ Trade is being executed...
                 if 'position_size' in user_response.modified_params:
                     trade_decision.position_size = user_response.modified_params['position_size']
             
+            from datetime import datetime, timezone
             message = f"""
 ✏️ Trade Modified and Accepted!
 
@@ -295,7 +347,7 @@ Trade is being executed...
 🎯 Take Profit: {original_rec.take_profit:.5f}
 📈 Position Size: {trade_decision.position_size}
 
-⏰ Executed: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ Executed: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
 
 Modified trade is being executed...
 """
@@ -312,11 +364,12 @@ Modified trade is being executed...
         try:
             trade_decision = notification.trade_decision
             
+            from datetime import datetime, timezone
             message = f"""
 ❌ Trade Denied
 
 📊 Pair: {trade_decision.recommendation.pair}
-⏰ Denied: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ Denied: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
 
 Trade has been cancelled.
 """

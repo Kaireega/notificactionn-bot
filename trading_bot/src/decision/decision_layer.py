@@ -2,17 +2,18 @@
 Decision Layer - Applies risk management and validates trade recommendations.
 """
 import asyncio
-from datetime import datetime, timedelta
+import traceback
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 import json
 
-from src.core.models import (
+from ..core.models import (
     TradeRecommendation, TradeDecision, MarketCondition, TradeSignal,
-    PerformanceMetrics, CandleData, TimeFrame, TechnicalIndicators
+    PerformanceMetrics, CandleData, TimeFrame, TechnicalIndicators, MarketContext
 )
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..utils.config import Config
+from ..utils.logger import get_logger
 from .risk_manager import RiskManager
 from .performance_tracker import PerformanceTracker
 from .enhanced_excel_trade_recorder import EnhancedExcelTradeRecorder
@@ -55,9 +56,11 @@ class DecisionLayer:
         try:
             # Check if we should process this recommendation
             if not self._should_process_recommendation(recommendation):
-                self.logger.info(f"🚫 Skipping recommendation for {recommendation.pair}: "
-                               f"confidence {recommendation.confidence:.2f} below threshold "
-                               f"({self.config.confidence_threshold})")
+                self.logger.info(
+                    f"🚫 Skipping recommendation for {recommendation.pair}: "
+                    f"confidence {recommendation.confidence:.2f} below threshold "
+                    f"({self.config.ai_confidence_threshold})"
+                )
                 return None
             
             # Apply risk management rules
@@ -84,7 +87,7 @@ class DecisionLayer:
                 modified_stop_loss=position_size['stop_loss'],
                 modified_take_profit=position_size['take_profit'],
                 risk_management_notes=risk_assessment['notes'],
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             # Log successful decision
@@ -111,7 +114,7 @@ class DecisionLayer:
             
             # Update tracking
             self._daily_trades.append(decision)
-            self._last_decision_time[recommendation.pair] = datetime.utcnow()
+            self._last_decision_time[recommendation.pair] = datetime.now(timezone.utc)
             
             self.logger.info(f"Approved trade decision for {recommendation.pair}: "
                            f"{recommendation.signal.value} at {current_price}")
@@ -133,7 +136,8 @@ class DecisionLayer:
         
         # Check if we already have a recent decision for this pair
         if recommendation.pair in self._last_decision_time:
-            time_since_last = datetime.utcnow() - self._last_decision_time[recommendation.pair]
+            from datetime import datetime, timezone
+            time_since_last = datetime.now(timezone.utc) - self._last_decision_time[recommendation.pair]
             if time_since_last.total_seconds() < self.config.min_decision_interval:
                 self.logger.debug(f"🔍 Rate limit check failed for {recommendation.pair}: "
                                 f"{time_since_last.total_seconds():.1f}s < {self.config.min_decision_interval}s")
@@ -141,7 +145,7 @@ class DecisionLayer:
         
         # Check daily trade limit
         today_trades = [t for t in self._daily_trades 
-                       if t.timestamp.date() == datetime.utcnow().date()]
+                       if t.timestamp.date() == datetime.now(timezone.utc).date()]
         if len(today_trades) >= self.config.max_trades_per_day:
             self.logger.warning(f"🔍 Daily trade limit reached for {recommendation.pair}: "
                               f"{len(today_trades)} >= {self.config.max_trades_per_day}")
@@ -168,7 +172,7 @@ class DecisionLayer:
             recommendation=recommendation,
             approved=False,
             risk_management_notes=risk_assessment['reason'],
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
     
     async def validate_market_conditions(
@@ -247,7 +251,8 @@ class DecisionLayer:
     
     def _is_low_liquidity_time(self) -> bool:
         """Check if current time is during low liquidity period."""
-        now = datetime.utcnow()
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
         
         # Weekend
         if now.weekday() >= 5:  # Saturday = 5, Sunday = 6
@@ -320,7 +325,8 @@ class DecisionLayer:
         """Clean up old decision data."""
         try:
             # Remove decisions older than 7 days
-            cutoff_date = datetime.utcnow() - timedelta(days=7)
+            from datetime import datetime, timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
             self._daily_trades = [
                 d for d in self._daily_trades 
                 if d.timestamp > cutoff_date
@@ -356,13 +362,24 @@ class DecisionLayer:
     async def start(self) -> None:
         """Start the decision layer."""
         try:
+            print("🎯 [DEBUG] Starting decision layer...")
             self.logger.info("Starting decision layer...")
+            
             # Start trade recorder
+            print("📝 [DEBUG] Starting trade recorder...")
             await self.trade_recorder.start()
+            print("✅ [DEBUG] Trade recorder started")
+            
             # Initialize performance tracker
+            print("📊 [DEBUG] Starting performance tracker...")
             await self.performance_tracker.start()
+            print("✅ [DEBUG] Performance tracker started")
+            
+            print("✅ [DEBUG] Decision layer started successfully")
             self.logger.info("Decision layer started successfully")
         except Exception as e:
+            print(f"❌ [DEBUG] Error starting decision layer: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error starting decision layer: {e}")
             raise
     
@@ -375,3 +392,53 @@ class DecisionLayer:
             self.logger.info("Decision layer closed")
         except Exception as e:
             self.logger.error(f"Error closing decision layer: {e}") 
+
+    async def make_enhanced_decision(self, pair: str, recommendation: Optional[TradeRecommendation], 
+                                   technical_indicators: Optional[TechnicalIndicators],
+                                   fundamental_analysis: Dict[str, Any], 
+                                   regime_analysis: Dict[str, Any],
+                                   market_context: MarketContext) -> Optional[TradeDecision]:
+        """Make enhanced trading decision based on all available data."""
+        self.logger.info(f"🎯 Starting enhanced decision making for {pair}...")
+        
+        try:
+            if not recommendation:
+                self.logger.info(f"ℹ️ {pair}: No trade recommendation - waiting for better market conditions")
+                return None
+            
+            self.logger.info(f"📊 {pair}: Analyzing recommendation - Signal: {recommendation.signal}, Confidence: {recommendation.confidence}")
+            
+            # Check confidence threshold
+            if recommendation.confidence < self.config.ai_confidence_threshold:
+                self.logger.info(
+                    f"❌ {pair}: Confidence {recommendation.confidence} below threshold {self.config.ai_confidence_threshold}"
+                )
+                return None
+            
+            self.logger.info(f"✅ {pair}: Confidence threshold met")
+            
+            # Create decision
+            # Create canonical TradeDecision as defined in core.models
+            from datetime import datetime, timezone
+            decision = TradeDecision(
+                recommendation=recommendation,
+                approved=True,
+                position_size=None,
+                risk_amount=None,
+                modified_stop_loss=recommendation.stop_loss,
+                modified_take_profit=recommendation.take_profit,
+                risk_management_notes="",
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            self.logger.info(f"✅ {pair}: Decision created successfully")
+            self.logger.info(f"🎯 {pair}: Decision - Signal: {decision.recommendation.signal}, Entry: {decision.recommendation.entry_price}, SL: {decision.modified_stop_loss}, TP: {decision.modified_take_profit}")
+            
+            # Record decision
+            self._log_decision(decision)
+            
+            return decision
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error in enhanced decision making for {pair}: {e}")
+            return None 

@@ -35,25 +35,38 @@ class OandaApi:
         if data is not None:
             data = json.dumps(data)
 
-        try:
-            response = None
-            if verb == "get":
-                response = self.session.get(full_url, params=params, data=data, headers=headers)
-            if verb == "post":
-                response = self.session.post(full_url, params=params, data=data, headers=headers)
-            if verb == "put":
-                response = self.session.put(full_url, params=params, data=data, headers=headers)
-            
-            if response == None:
-                return False, {'error': 'verb not found'}
+        # Simple retry with backoff for robustness
+        backoffs = [0.0, 0.25, 0.5, 1.0]
+        last_error = None
+        for delay in backoffs:
+            try:
+                if delay:
+                    import time as _t
+                    _t.sleep(delay)
+                response = None
+                if verb == "get":
+                    response = self.session.get(full_url, params=params, data=data, headers=headers)
+                if verb == "post":
+                    response = self.session.post(full_url, params=params, data=data, headers=headers)
+                if verb == "put":
+                    response = self.session.put(full_url, params=params, data=data, headers=headers)
+                
+                if response is None:
+                    last_error = {'error': 'verb not found'}
+                    continue
 
-            if response.status_code == code:
-                return True, response.json()
-            else:
-                return False, response.json()
-            
-        except Exception as error:
-            return False, {'Exception': error}
+                if response.status_code == code:
+                    return True, response.json()
+                else:
+                    last_error = response.json()
+                    # Retry on 5xx
+                    if 500 <= response.status_code < 600:
+                        continue
+                    return False, last_error
+            except Exception as error:
+                last_error = {'Exception': error}
+                continue
+        return False, last_error or {'error': 'request failed'}
 
     def get_account_ep(self, ep, data_key):
         url = f"accounts/{defs.ACCOUNT_ID}/{ep}"
