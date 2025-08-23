@@ -293,4 +293,42 @@ class ChartGenerator:
             return {
                 'error': f"Failed to create simple chart: {e}",
                 'chart_type': 'simple'
-            } 
+            }
+    
+    def generate_chart(self, chart_data: Dict[str, Any]) -> Optional[bytes]:
+        """Generate a chart based on chart data and return as bytes."""
+        try:
+            chart_type = chart_data.get('type', 'simple')
+            
+            if chart_type == 'simple':
+                # Create a simple placeholder chart
+                fig = go.Figure(data=[go.Scatter(
+                    x=[1, 2, 3, 4, 5],
+                    y=[1, 2, 3, 2, 1],
+                    mode='lines+markers',
+                    name='Price'
+                )])
+                
+                fig.update_layout(
+                    title="Trading Chart",
+                    xaxis_title="Time",
+                    yaxis_title="Price",
+                    height=300,
+                    width=500
+                )
+                
+                # Convert to image bytes
+                img_bytes = fig.to_image(format="png")
+                return img_bytes
+                
+            elif chart_type == 'candlestick':
+                # For candlestick charts, return a simple line chart for now
+                return self.generate_chart({'type': 'simple'})
+                
+            else:
+                # Default to simple chart
+                return self.generate_chart({'type': 'simple'})
+                
+        except Exception as e:
+            print(f"❌ [DEBUG] Failed to generate chart: {e}")
+            return None 

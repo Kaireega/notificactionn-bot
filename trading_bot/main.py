@@ -20,7 +20,7 @@ from trading_bot.src.utils.config import Config
 from trading_bot.src.utils.logger import get_logger
 from trading_bot.src.data.data_layer import DataLayer
 from trading_bot.src.ai.technical_analysis_layer import TechnicalAnalysisLayer
-from trading_bot.src.decision.technical_decision_layer import TechnicalDecisionLayer
+from trading_bot.src.decision.automated_decision_layer import AutomatedDecisionLayer
 from trading_bot.src.notifications.notification_layer import NotificationLayer
 from trading_bot.src.core.position_manager import PositionManager
 from trading_bot.src.core.fundamental_analyzer import FundamentalAnalyzer
@@ -72,8 +72,13 @@ class TradingBot:
         self.technical_layer = TechnicalAnalysisLayer(self.config)
         print(f"🔧 [DEBUG] Technical analysis layer initialized")
         
-        self.decision_layer = TechnicalDecisionLayer(self.config)
-        print(f"🔧 [DEBUG] Technical decision layer initialized")
+        # Initialize automated decision layer with notification and position manager
+        self.decision_layer = AutomatedDecisionLayer(
+            self.config, 
+            notification_layer=None,  # Will be set after initialization
+            position_manager=None     # Will be set after initialization
+        )
+        print(f"🔧 [DEBUG] Automated decision layer initialized")
         
         self.notification_layer = NotificationLayer(self.config)
         print(f"🔧 [DEBUG] Notification layer initialized")
@@ -112,15 +117,23 @@ class TradingBot:
             await self.technical_layer.start()
             print("✅ [DEBUG] Technical analysis layer started successfully")
             
-            print("🚀 [DEBUG] Starting technical decision layer...")
-            await self.decision_layer.start()
-            print("✅ [DEBUG] Technical decision layer started successfully")
-            
             print("🚀 [DEBUG] Starting notification layer...")
             await self.notification_layer.start()
             print("✅ [DEBUG] Notification layer started successfully")
+            
+            print("🚀 [DEBUG] Starting advanced components...")
+            await self.position_manager.start()
+            print("✅ [DEBUG] Position manager started successfully")
+            
+            # Connect automated decision layer with notification and position manager
+            self.decision_layer.notification_layer = self.notification_layer
+            self.decision_layer.position_manager = self.position_manager
+            
+            print("🚀 [DEBUG] Starting automated decision layer...")
+            await self.decision_layer.start()
+            print("✅ [DEBUG] Automated decision layer started successfully")
 
-            # Register trade executor for manual approvals
+            # Register trade executor for manual approvals (for backward compatibility)
             self.notification_layer.set_trade_executor(self._execute_trade_from_notification)
             
             # Start new advanced components
@@ -172,7 +185,7 @@ class TradingBot:
 📊 Component Status:
 ✅ Data Layer: Active
 ✅ Technical Analysis: Active  
-✅ Technical Decision Layer: Active
+✅ Automated Decision Layer: Active (FULLY AUTOMATED)
 ✅ Notifications: Active
 ✅ Position Manager: Active
 ✅ Fundamental Analyzer: Active
@@ -415,101 +428,51 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                             if not self.is_running:
                                 break
                                 
-                            # Technical Decision Making
+                            # Automated Decision Making
                             try:
                                 # Get current price for decision making
                                 current_price = self._get_current_price(candles_by_timeframe.get(TimeFrame.M5, []))
                                 
-                                decision = await self.decision_layer.make_technical_decision(
-                                    pair, technical_indicators, market_context, current_price, candles_by_timeframe
-                                )
-                                
-                                # Risk Management - Always assess risk for recommendations
+                                # Use automated decision layer for fully automated trading
                                 if recommendation:
-                                    try:
-                                        # Create a temporary decision for risk assessment
-                                        temp_decision = TradeDecision(
-                                            recommendation=recommendation,
-                                            approved=False,
-                                            position_size=None,
-                                            risk_amount=None,
-                                            modified_stop_loss=recommendation.stop_loss,
-                                            modified_take_profit=recommendation.take_profit,
-                                            risk_management_notes="",
-                                            timestamp=datetime.utcnow()
-                                        )
-                                        
-                                        risk_assessment = await self.advanced_risk_manager.assess_trade_risk(
-                                            temp_decision, market_context, technical_indicators, fundamental_analysis
-                                        )
-                                    except Exception as e:
-                                        risk_assessment = {
-                                            'approved': False,
-                                            'reason': f'Risk assessment failed: {str(e)}',
-                                            'risk_score': 0.0,
-                                            'max_position_size': 0.0,
-                                            'portfolio_heat': 0.0
-                                        }
-                                else:
-                                    risk_assessment = {
-                                        'approved': False,
-                                        'reason': 'No recommendation',
-                                        'risk_score': 0.0,
-                                        'max_position_size': 0.0,
-                                        'portfolio_heat': 0.0
-                                    }
-                                
-                                pair_analysis['risk_assessment'] = {
-                                    'approved': risk_assessment.get('approved', False),
-                                    'reason': risk_assessment.get('reason', 'Unknown'),
-                                    'risk_score': risk_assessment.get('risk_score', 0.0),
-                                    'max_position_size': risk_assessment.get('max_position_size', 0.0),
-                                    'portfolio_heat': risk_assessment.get('portfolio_heat', 0.0)
-                                }
-                                
-                                if decision:
-                                    # Position sizing handled in RiskManager; avoid duplicate sizing here
-                                    try:
-                                        pass
-                                    except Exception as e:
-                                        pair_analysis['errors'].append(f"Position sizing failed: {str(e)}")
-                                    pair_analysis['decision'] = {
-                                        'signal': decision.recommendation.signal.value,
-                                        'entry_price': float(decision.recommendation.entry_price) if decision.recommendation.entry_price else None,
-                                        'stop_loss': float(decision.modified_stop_loss) if decision.modified_stop_loss else None,
-                                        'take_profit': float(decision.modified_take_profit) if decision.modified_take_profit else None,
-                                        'position_size': float(decision.position_size) if decision.position_size else None,
-                                        'reasoning': decision.recommendation.reasoning
-                                    }
+                                    decision = await self.decision_layer.process_recommendation(
+                                        recommendation=recommendation,
+                                        current_price=current_price,
+                                        market_context=market_context,
+                                        technical_indicators=technical_indicators,
+                                        candles_by_timeframe=candles_by_timeframe,
+                                        ai_outputs={'fundamental_analysis': fundamental_analysis},
+                                        multi_timeframe_analysis={'regime_analysis': regime_analysis},
+                                        risk_assessment=None,  # Will be calculated by automated layer
+                                        raw_data={'pair_analysis': pair_analysis}
+                                    )
                                     
-                                    if risk_assessment['approved']:
-                                        # Optional manual approval gate
-                                        try:
-                                            if self.config.notifications.manual_trade_approval:
-                                                # Send pre-trade notification and stop here; execution will happen via callback handler on Accept
-                                                await self._send_pre_trade_notification(decision, fundamental_analysis, regime_analysis)
-                                                pair_analysis['trade_executed'] = False
-                                                pair_analysis['trade_id'] = None
-                                                # Skip auto execution when manual approval is enabled
-                                                continue
-                                        except Exception as e:
-                                            self.logger.error(f"Pre-trade notification failed: {e}")
-
-                                        # Auto execution path
-                                        trade_id = await self.position_manager.execute_trade(decision, market_context)
+                                    if decision:
+                                        pair_analysis['decision'] = {
+                                            'signal': decision.recommendation.signal.value,
+                                            'entry_price': float(decision.recommendation.entry_price) if decision.recommendation.entry_price else None,
+                                            'stop_loss': float(decision.modified_stop_loss) if decision.modified_stop_loss else None,
+                                            'take_profit': float(decision.modified_take_profit) if decision.modified_take_profit else None,
+                                            'position_size': float(decision.position_size) if decision.position_size else None,
+                                            'reasoning': decision.recommendation.reasoning
+                                        }
                                         
-                                        if trade_id:
+                                        if decision.approved:
                                             loop_stats['trades_executed'] += 1
                                             pair_analysis['trade_executed'] = True
-                                            pair_analysis['trade_id'] = trade_id
+                                            pair_analysis['trade_id'] = 'automated_execution'
+                                        else:
+                                            loop_stats['trades_rejected'] += 1
+                                            pair_analysis['trade_executed'] = False
+                                            pair_analysis['trade_id'] = None
                                     else:
-                                        loop_stats['trades_rejected'] += 1
+                                        pair_analysis['decision'] = None
+                                        if recommendation:
+                                            loop_stats['trades_rejected'] += 1
                                 else:
                                     pair_analysis['decision'] = None
-                                    if recommendation:
-                                        loop_stats['trades_rejected'] += 1
                             except Exception as e:
-                                pair_analysis['errors'].append(f"Decision making failed: {str(e)}")
+                                pair_analysis['errors'].append(f"Automated decision making failed: {str(e)}")
                             
                             # Store pair analysis in loop stats
                             loop_stats['pair_analyses'][pair] = pair_analysis
