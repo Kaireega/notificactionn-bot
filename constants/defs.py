@@ -26,16 +26,16 @@ def load_env_from_file(file_path='config.env'):
     print("Warning: No config.env or .env file found")
     return False
 
-# Load environment variables from config file
+# Load environment variables from config file (optional convenience)
 load_env_from_file()
 
-# API Configuration - Use environment variables if available, otherwise use defaults
-API_KEY = os.getenv('OANDA_API_KEY', "a003d683522416767b6aa4465f666f6b-7eda7211ed563893626f489acf155f06")
-ACCOUNT_ID = os.getenv('OANDA_ACCOUNT_ID', "101-001-23541205-001")
+# API Configuration - Require environment variables for sensitive values
+API_KEY = os.getenv('OANDA_API_KEY')
+ACCOUNT_ID = os.getenv('OANDA_ACCOUNT_ID')
 OANDA_URL = os.getenv('OANDA_URL', 'https://api-fxpractice.oanda.com/v3')
 
 SECURE_HEADER = {
-    "Authorization": f"Bearer {API_KEY}",
+    "Authorization": f"Bearer {API_KEY}" if API_KEY else "",
     "Content-Type": "application/json"
 }
 
@@ -43,7 +43,8 @@ SELL = -1
 BUY = 1
 NONE = 0
 
-MONGO_CONN_STR = "mongodb+srv://kairee3351:Kloud.98@cluster0.m5p8n.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+# Database connection string should be provided via environment only
+MONGO_CONN_STR = os.getenv('MONGO_CONN_STR')
 INVESTING_COM_PAIRS = {
    "EUR_USD":{
       "pair":"EUR_USD",

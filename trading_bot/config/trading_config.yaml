@@ -57,6 +57,9 @@ ai_analysis:
   temperature: 0.3
   analysis_frequency: 300  # 5 minutes
   confidence_threshold: 0.5  # Lowered from 0.7 to generate more recommendations
+  signal_strength_threshold: 0.03  # Lowered threshold for more trading opportunities (3% minimum)
+  minimum_confidence: 0.6  # Lowered confidence requirement for more trades
+  risk_reward_ratio_minimum: 1.1  # Lowered to 1:1.1 risk/reward ratio for testing
   include_news_sentiment: true
   include_technical_analysis: true
   include_market_context: true
@@ -72,18 +75,26 @@ notifications:
     daily_summary: true
     trade_alerts: true
   loop_reports:
-    enabled: true
+    enabled: true # Disabled to reduce notification spam
     send_on_error: true
     include_performance: true
   notification_cooldown: 300  # 5 minutes
+  manual_trade_approval: true
+  pre_trade_cooldown_seconds: 0
 
 # Data Collection
 data_collection:
   historical_days: 30
-  update_frequency: 60  # 60 seconds
+  update_frequency: 300  # 5 minutes
   store_raw_data: true
   compression: true
   backup_frequency: 24
+
+# Simulation
+simulation:
+  enabled: true
+  data_source: db   # csv | oanda | db
+  csv_dir: data
 
 # Performance Tracking
 performance:

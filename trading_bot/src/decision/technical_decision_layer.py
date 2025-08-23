@@ -1,0 +1,386 @@
+"""
+Technical Decision Layer - Makes trading decisions based on technical indicators only.
+This replaces the AI-dependent decision making with pure technical analysis.
+"""
+import asyncio
+import traceback
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Any
+from decimal import Decimal
+import json
+
+from ..core.models import (
+    TradeRecommendation, TradeDecision, MarketCondition, TradeSignal,
+    PerformanceMetrics, CandleData, TimeFrame, TechnicalIndicators, MarketContext
+)
+from ..utils.config import Config
+from ..utils.logger import get_logger
+from .risk_manager import RiskManager
+from .performance_tracker import PerformanceTracker
+from .enhanced_excel_trade_recorder import EnhancedExcelTradeRecorder
+
+
+class TechnicalDecisionLayer:
+    """Makes trading decisions based on technical indicators without AI."""
+    
+    def __init__(self, config: Config):
+        self.config = config
+        self.logger = get_logger(__name__)
+        
+        # Initialize components
+        self.risk_manager = RiskManager(config)
+        self.performance_tracker = PerformanceTracker()
+        self.trade_recorder = EnhancedExcelTradeRecorder(config)
+        
+        # Decision tracking
+        self._daily_trades: List[TradeDecision] = []
+        self._open_positions: Dict[str, TradeDecision] = {}
+        self._last_decision_time: Dict[str, datetime] = {}
+        
+        # Performance metrics
+        self._performance_metrics = PerformanceMetrics()
+        
+        # Technical analysis thresholds
+        self.rsi_oversold = 30
+        self.rsi_overbought = 70
+        self.macd_signal_threshold = 0.0001  # Minimum MACD signal strength
+        self.bollinger_threshold = 0.1  # Distance from Bollinger bands
+        self.atr_multiplier = 2.0  # ATR multiplier for stop loss
+        
+    async def make_technical_decision(
+        self, 
+        pair: str,
+        technical_indicators: Dict[TimeFrame, TechnicalIndicators],
+        market_context: MarketContext,
+        current_price: Decimal,
+        candles_by_timeframe: Dict[TimeFrame, List[CandleData]] = None
+    ) -> Optional[TradeDecision]:
+        """Make trading decision based on technical indicators only."""
+        
+        self.logger.info(f"🎯 Starting technical decision making for {pair}...")
+        
+        try:
+            # Get primary timeframe indicators (M5)
+            primary_indicators = technical_indicators.get(TimeFrame.M5)
+            if not primary_indicators:
+                self.logger.info(f"ℹ️ {pair}: No primary timeframe indicators available")
+                return None
+            
+            # Analyze technical signals
+            signal_analysis = self._analyze_technical_signals(primary_indicators, market_context)
+            
+            if not signal_analysis['has_signal']:
+                self.logger.info(f"ℹ️ {pair}: No clear technical signal detected")
+                return None
+            
+            # Calculate confidence based on signal strength
+            confidence = self._calculate_technical_confidence(signal_analysis, technical_indicators)
+            
+            # Check if confidence meets threshold
+            if confidence < self.config.ai_confidence_threshold:
+                self.logger.info(f"❌ {pair}: Technical confidence {confidence:.2f} below threshold {self.config.ai_confidence_threshold}")
+                return None
+            
+            # Create trade recommendation
+            recommendation = self._create_technical_recommendation(
+                pair, signal_analysis, confidence, current_price, primary_indicators
+            )
+            
+            # Apply risk management
+            risk_assessment = await self.risk_manager.assess_risk(
+                recommendation, current_price, market_context
+            )
+            
+            if not risk_assessment['approved']:
+                self.logger.info(f"⚠️ Risk management rejected trade for {pair}: {risk_assessment['reason']}")
+                return self._create_rejected_decision(recommendation, risk_assessment)
+            
+            # Calculate position size
+            position_size = await self.risk_manager.calculate_position_size(
+                recommendation, risk_assessment
+            )
+            
+            # Create trade decision
+            decision = TradeDecision(
+                recommendation=recommendation,
+                approved=True,
+                position_size=position_size['size'],
+                risk_amount=position_size['risk_amount'],
+                modified_stop_loss=position_size['stop_loss'],
+                modified_take_profit=position_size['take_profit'],
+                risk_management_notes=risk_assessment['reason'],
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            # Log successful decision
+            self.logger.info(f"✅ Technical trade APPROVED for {pair}: "
+                           f"Signal={recommendation.signal}, "
+                           f"Confidence={confidence:.2f}, "
+                           f"Size={position_size['size']:.2f}")
+            
+            # Record the decision
+            self._log_decision(decision)
+            
+            # Record the COMPLETE trade decision with ALL data
+            if self.trade_recorder:
+                self.trade_recorder.record_complete_trade_decision(
+                    decision=decision,
+                    market_context=market_context,
+                    technical_indicators=technical_indicators,
+                    candles_by_timeframe=candles_by_timeframe or {},
+                    ai_outputs={},  # Empty since no AI analysis
+                    multi_timeframe_analysis=self._create_multi_timeframe_analysis(technical_indicators),
+                    risk_assessment=risk_assessment,
+                    raw_data={'technical_analysis': signal_analysis}
+                )
+            
+            # Update tracking
+            self._daily_trades.append(decision)
+            self._last_decision_time[pair] = datetime.now(timezone.utc)
+            
+            return decision
+            
+        except Exception as e:
+            self.logger.error(f"Error in technical decision making for {pair}: {e}")
+            return None
+    
+    def _analyze_technical_signals(self, indicators: TechnicalIndicators, market_context: MarketContext) -> Dict[str, Any]:
+        """Analyze technical indicators to generate trading signals."""
+        
+        signals = {
+            'rsi_signal': None,
+            'macd_signal': None,
+            'bollinger_signal': None,
+            'ema_signal': None,
+            'overall_signal': None,
+            'has_signal': False,
+            'signal_strength': 0.0,
+            'reasoning': []
+        }
+        
+        try:
+            # RSI Analysis
+            if indicators.rsi is not None:
+                if indicators.rsi < self.rsi_oversold:
+                    signals['rsi_signal'] = TradeSignal.BUY
+                    signals['reasoning'].append(f"RSI oversold ({indicators.rsi:.2f})")
+                elif indicators.rsi > self.rsi_overbought:
+                    signals['rsi_signal'] = TradeSignal.SELL
+                    signals['reasoning'].append(f"RSI overbought ({indicators.rsi:.2f})")
+            
+            # MACD Analysis
+            if (indicators.macd is not None and indicators.macd_signal is not None and 
+                abs(indicators.macd - indicators.macd_signal) > self.macd_signal_threshold):
+                
+                if indicators.macd > indicators.macd_signal:
+                    signals['macd_signal'] = TradeSignal.BUY
+                    signals['reasoning'].append("MACD bullish crossover")
+                else:
+                    signals['macd_signal'] = TradeSignal.SELL
+                    signals['reasoning'].append("MACD bearish crossover")
+            
+            # Bollinger Bands Analysis
+            if (indicators.bollinger_upper is not None and indicators.bollinger_lower is not None and 
+                indicators.bollinger_middle is not None):
+                
+                # Calculate price position relative to bands
+                price = indicators.bollinger_middle  # Use middle band as reference
+                upper_distance = (indicators.bollinger_upper - price) / price
+                lower_distance = (price - indicators.bollinger_lower) / price
+                
+                if upper_distance < self.bollinger_threshold:
+                    signals['bollinger_signal'] = TradeSignal.SELL
+                    signals['reasoning'].append("Price near upper Bollinger band")
+                elif lower_distance < self.bollinger_threshold:
+                    signals['bollinger_signal'] = TradeSignal.BUY
+                    signals['reasoning'].append("Price near lower Bollinger band")
+            
+            # EMA Analysis
+            if (indicators.ema_fast is not None and indicators.ema_slow is not None):
+                if indicators.ema_fast > indicators.ema_slow:
+                    signals['ema_signal'] = TradeSignal.BUY
+                    signals['reasoning'].append("Fast EMA above slow EMA")
+                else:
+                    signals['ema_signal'] = TradeSignal.SELL
+                    signals['reasoning'].append("Fast EMA below slow EMA")
+            
+            # Determine overall signal
+            buy_signals = sum(1 for signal in [signals['rsi_signal'], signals['macd_signal'], 
+                                             signals['bollinger_signal'], signals['ema_signal']] 
+                            if signal == TradeSignal.BUY)
+            sell_signals = sum(1 for signal in [signals['rsi_signal'], signals['macd_signal'], 
+                                              signals['bollinger_signal'], signals['ema_signal']] 
+                             if signal == TradeSignal.SELL)
+            
+            if buy_signals > sell_signals and buy_signals >= 1:  # More lenient: only need 1 signal
+                signals['overall_signal'] = TradeSignal.BUY
+                signals['has_signal'] = True
+                signals['signal_strength'] = buy_signals / 4.0
+            elif sell_signals > buy_signals and sell_signals >= 1:  # More lenient: only need 1 signal
+                signals['overall_signal'] = TradeSignal.SELL
+                signals['has_signal'] = True
+                signals['signal_strength'] = sell_signals / 4.0
+            elif buy_signals == sell_signals and buy_signals >= 1:  # Handle tie cases
+                # In case of tie, prefer the stronger signal or use RSI as tiebreaker
+                if signals['rsi_signal'] == TradeSignal.BUY:
+                    signals['overall_signal'] = TradeSignal.BUY
+                    signals['has_signal'] = True
+                    signals['signal_strength'] = buy_signals / 4.0
+                elif signals['rsi_signal'] == TradeSignal.SELL:
+                    signals['overall_signal'] = TradeSignal.SELL
+                    signals['has_signal'] = True
+                    signals['signal_strength'] = sell_signals / 4.0
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing technical signals: {e}")
+        
+        return signals
+    
+    def _calculate_technical_confidence(self, signal_analysis: Dict[str, Any], 
+                                      technical_indicators: Dict[TimeFrame, TechnicalIndicators]) -> float:
+        """Calculate confidence based on technical signal strength and consistency."""
+        
+        base_confidence = signal_analysis['signal_strength']
+        
+        # Boost confidence based on multi-timeframe agreement
+        timeframe_agreement = 0.0
+        total_timeframes = 0
+        
+        for timeframe, indicators in technical_indicators.items():
+            if indicators is None:
+                continue
+                
+            total_timeframes += 1
+            timeframe_signals = self._analyze_technical_signals(indicators, None)
+            
+            if (timeframe_signals['overall_signal'] == signal_analysis['overall_signal'] and 
+                timeframe_signals['has_signal']):
+                timeframe_agreement += 1.0
+        
+        if total_timeframes > 0:
+            timeframe_agreement /= total_timeframes
+            base_confidence += timeframe_agreement * 0.3
+        
+        # Cap confidence at 0.95
+        return min(base_confidence, 0.95)
+    
+    def _create_technical_recommendation(
+        self, 
+        pair: str, 
+        signal_analysis: Dict[str, Any], 
+        confidence: float, 
+        current_price: Decimal,
+        indicators: TechnicalIndicators
+    ) -> TradeRecommendation:
+        """Create trade recommendation from technical analysis."""
+        
+        # Calculate stop loss and take profit using ATR
+        atr = Decimal(str(indicators.atr)) if indicators.atr else Decimal('0.001')
+        atr_distance = atr * Decimal(str(self.atr_multiplier))
+        
+        if signal_analysis['overall_signal'] == TradeSignal.BUY:
+            stop_loss = current_price - atr_distance
+            take_profit = current_price + (atr_distance * Decimal('2'))  # 1:2 risk-reward
+        else:
+            stop_loss = current_price + atr_distance
+            take_profit = current_price - (atr_distance * Decimal('2'))  # 1:2 risk-reward
+        
+        # Calculate risk-reward ratio
+        risk = abs(current_price - stop_loss)
+        reward = abs(take_profit - current_price)
+        risk_reward_ratio = float(reward / risk) if risk > 0 else 0.0
+        
+        reasoning = " | ".join(signal_analysis['reasoning'])
+        
+        return TradeRecommendation(
+            pair=pair,
+            signal=signal_analysis['overall_signal'],
+            confidence=confidence,
+            entry_price=current_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            risk_reward_ratio=risk_reward_ratio,
+            reasoning=reasoning,
+            market_condition=MarketCondition.BREAKOUT,  # Default to breakout
+            estimated_hold_time=timedelta(minutes=120)  # 2 hours default
+        )
+    
+    def _create_multi_timeframe_analysis(self, technical_indicators: Dict[TimeFrame, TechnicalIndicators]) -> Dict[str, Any]:
+        """Create multi-timeframe analysis summary for recording."""
+        
+        analysis = {}
+        
+        for timeframe, indicators in technical_indicators.items():
+            if indicators is None:
+                continue
+                
+            analysis[timeframe.value] = {
+                'rsi': indicators.rsi,
+                'macd': indicators.macd,
+                'macd_signal': indicators.macd_signal,
+                'atr': indicators.atr,
+                'ema_fast': indicators.ema_fast,
+                'ema_slow': indicators.ema_slow,
+                'bollinger_upper': indicators.bollinger_upper,
+                'bollinger_middle': indicators.bollinger_middle,
+                'bollinger_lower': indicators.bollinger_lower
+            }
+        
+        return analysis
+    
+    def _create_rejected_decision(
+        self, 
+        recommendation: TradeRecommendation, 
+        risk_assessment: Dict[str, Any]
+    ) -> TradeDecision:
+        """Create a rejected trade decision."""
+        return TradeDecision(
+            recommendation=recommendation,
+            approved=False,
+            risk_management_notes=risk_assessment['reason'],
+            timestamp=datetime.now(timezone.utc)
+        )
+    
+    def _log_decision(self, decision: TradeDecision) -> None:
+        """Log the decision details."""
+        self.logger.info(
+            f"📊 Technical Decision: {decision.recommendation.pair} - "
+            f"Signal: {decision.recommendation.signal.value}, "
+            f"Confidence: {decision.recommendation.confidence:.2f}, "
+            f"Entry: {decision.recommendation.entry_price}, "
+            f"SL: {decision.modified_stop_loss}, "
+            f"TP: {decision.modified_take_profit}"
+        )
+    
+    async def start(self) -> None:
+        """Start the technical decision layer."""
+        try:
+            print("🎯 [DEBUG] Starting technical decision layer...")
+            self.logger.info("Starting technical decision layer...")
+            
+            # Start trade recorder
+            print("📝 [DEBUG] Starting trade recorder...")
+            await self.trade_recorder.start()
+            print("✅ [DEBUG] Trade recorder started")
+            
+            # Initialize performance tracker
+            print("📊 [DEBUG] Starting performance tracker...")
+            await self.performance_tracker.start()
+            print("✅ [DEBUG] Performance tracker started")
+            
+            print("✅ [DEBUG] Technical decision layer started successfully")
+            self.logger.info("Technical decision layer started successfully")
+        except Exception as e:
+            print(f"❌ [DEBUG] Error starting technical decision layer: {e}")
+            self.logger.error(f"Error starting technical decision layer: {e}")
+            raise
+    
+    async def close(self) -> None:
+        """Close technical decision layer."""
+        try:
+            # Stop trade recorder
+            await self.trade_recorder.stop()
+            await self.performance_tracker.close()
+            self.logger.info("Technical decision layer closed")
+        except Exception as e:
+            self.logger.error(f"Error closing technical decision layer: {e}")

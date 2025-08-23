@@ -1,14 +1,18 @@
 """
 Chart Generator - Creates trading charts for notifications.
 """
+import traceback
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 import plotly.graph_objects as go
 import plotly.io as pio
 import base64
 import io
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from mplfinance.original_flavor import candlestick_ohlc
 
-from src.core.models import CandleData, TradeRecommendation
+from ..core.models import CandleData, TradeRecommendation
 
 
 class ChartGenerator:
@@ -19,62 +23,65 @@ class ChartGenerator:
         # Set default chart style
         pio.templates.default = "plotly_white"
     
-    def create_candlestick_chart(
-        self, 
-        candles: List[CandleData],
-        trade_recommendation: Optional[TradeRecommendation] = None,
-        title: str = "Price Chart"
-    ) -> Dict[str, Any]:
+    def create_candlestick_chart(self, candles: List[CandleData], trade_recommendation: Optional[TradeRecommendation] = None) -> str:
         """Create a candlestick chart with optional trade signals."""
-        
         try:
             # Prepare data
-            dates = [c.timestamp for c in candles]
-            opens = [float(c.open) for c in candles]
-            highs = [float(c.high) for c in candles]
-            lows = [float(c.low) for c in candles]
-            closes = [float(c.close) for c in candles]
+            dates = [candle.timestamp for candle in candles]
+            opens = [float(candle.open) for candle in candles]
+            highs = [float(candle.high) for candle in candles]
+            lows = [float(candle.low) for candle in candles]
+            closes = [float(candle.close) for candle in candles]
             
-            # Create candlestick chart
-            fig = go.Figure(data=[go.Candlestick(
-                x=dates,
-                open=opens,
-                high=highs,
-                low=lows,
-                close=closes,
-                name="Price"
-            )])
+            # Create the chart
+            fig, ax = plt.subplots(figsize=(12, 8))
             
-            # Add trade recommendation if provided
+            # Plot candlesticks
+            candlestick_ohlc(ax, list(zip(mdates.date2num(dates), opens, highs, lows, closes)), 
+                           width=0.6, colorup='green', colordown='red', alpha=0.8)
+            
+            # Add trade signals if available
             if trade_recommendation:
-                self._add_trade_signals(fig, trade_recommendation)
+                # Add entry point
+                if trade_recommendation.entry_price:
+                    ax.axhline(y=float(trade_recommendation.entry_price), color='blue', linestyle='--', 
+                             label=f'Entry: {trade_recommendation.entry_price}')
+                
+                # Add stop loss
+                if trade_recommendation.stop_loss:
+                    ax.axhline(y=float(trade_recommendation.stop_loss), color='red', linestyle='--', 
+                             label=f'Stop Loss: {trade_recommendation.stop_loss}')
+                
+                # Add take profit
+                if trade_recommendation.take_profit:
+                    ax.axhline(y=float(trade_recommendation.take_profit), color='green', linestyle='--', 
+                             label=f'Take Profit: {trade_recommendation.take_profit}')
+                
+                ax.legend()
             
-            # Update layout
-            fig.update_layout(
-                title=title,
-                xaxis_title="Time",
-                yaxis_title="Price",
-                xaxis_rangeslider_visible=False,
-                height=400,
-                width=600
-            )
+            # Format the chart
+            ax.set_title('Price Chart with Trade Signals')
+            ax.set_xlabel('Date')
+            ax.set_ylabel('Price')
+            ax.grid(True, alpha=0.3)
             
-            # Convert to image
-            img_bytes = fig.to_image(format="png")
-            img_base64 = base64.b64encode(img_bytes).decode()
+            # Format x-axis dates
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+            plt.xticks(rotation=45)
             
-            return {
-                'image_data': img_base64,
-                'image_format': 'png',
-                'chart_type': 'candlestick',
-                'data_points': len(candles)
-            }
+            # Convert to base64
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return img_base64
             
         except Exception as e:
-            return {
-                'error': f"Failed to create chart: {e}",
-                'chart_type': 'candlestick'
-            }
+            print(f"❌ [DEBUG] Failed to create chart: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
+            return ""
     
     def create_technical_chart(
         self, 

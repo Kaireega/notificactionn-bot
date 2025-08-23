@@ -32,7 +32,7 @@ if __name__ == '__main__':
     
     print("✅ API credentials validated successfully!")
     
-    instrumentCollection.LoadInstruments("./data")
+    instrumentCollection.LoadInstrumentsDB()
     # instrumentCollection.CreateDB(api.get_account_instruments())
     # instrumentCollection.LoadInstrumentsDB()
     # print(instrumentCollection.instruments_dict)

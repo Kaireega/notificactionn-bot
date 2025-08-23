@@ -1,13 +1,14 @@
 """
 Performance Tracker - Tracks trading performance metrics.
 """
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 import statistics
 
-from src.core.models import TradeDecision, PerformanceMetrics, TradeExecution
-from src.utils.logger import get_logger
+from ..core.models import TradeDecision, PerformanceMetrics, TradeExecution
+from ..utils.logger import get_logger
 
 
 class PerformanceTracker:
@@ -19,7 +20,8 @@ class PerformanceTracker:
         # Performance data
         self._trades: List[TradeExecution] = []
         self._performance_metrics = PerformanceMetrics()
-        self._last_calculation = datetime.utcnow()
+        from datetime import datetime, timezone
+        self._last_calculation = datetime.now(timezone.utc)
         
         # Time periods for analysis
         self._periods = {
@@ -30,8 +32,10 @@ class PerformanceTracker:
     
     def add_trade(self, trade_execution: TradeExecution) -> None:
         """Add a completed trade to the tracker."""
+        print(f"📊 [DEBUG] Adding trade to performance tracker: {trade_execution.pair} - {trade_execution.action.value}")
         self._trades.append(trade_execution)
         self._update_metrics()
+        print(f"📊 [DEBUG] Performance metrics updated - Total trades: {len(self._trades)}")
     
     def get_performance_metrics(self, period: str = 'all') -> PerformanceMetrics:
         """Get performance metrics for the specified period."""
@@ -39,7 +43,8 @@ class PerformanceTracker:
             return self._performance_metrics
         
         # Filter trades by period
-        cutoff_time = datetime.utcnow() - self._periods.get(period, timedelta(days=30))
+        from datetime import datetime, timezone
+        cutoff_time = datetime.now(timezone.utc) - self._periods.get(period, timedelta(days=30))
         period_trades = [t for t in self._trades if t.execution_time >= cutoff_time]
         
         return self._calculate_metrics(period_trades)
@@ -82,6 +87,30 @@ class PerformanceTracker:
             'max_drawdown': float(metrics.max_drawdown),
             'sharpe_ratio': metrics.sharpe_ratio
         }
+
+    def get_breakdown_by_pair(self, period: str = 'all') -> Dict[str, Dict[str, Any]]:
+        from datetime import datetime, timezone
+        if period == 'all':
+            trades = self._trades
+        else:
+            cutoff_time = datetime.now(timezone.utc) - self._periods.get(period, timedelta(days=30))
+            trades = [t for t in self._trades if t.execution_time >= cutoff_time]
+
+        by_pair: Dict[str, List[TradeExecution]] = {}
+        for t in trades:
+            pair = t.trade_decision.recommendation.pair if t.trade_decision and t.trade_decision.recommendation else 'UNKNOWN'
+            by_pair.setdefault(pair, []).append(t)
+        breakdown: Dict[str, Dict[str, Any]] = {}
+        for pair, pts in by_pair.items():
+            m = self._calculate_metrics(pts)
+            breakdown[pair] = {
+                'total_trades': m.total_trades,
+                'win_rate': f"{m.win_rate:.2%}",
+                'net_profit': float(m.net_profit),
+                'profit_factor': m.profit_factor,
+                'max_drawdown': float(m.max_drawdown),
+            }
+        return breakdown
     
     async def get_daily_metrics(self) -> PerformanceMetrics:
         """Get daily performance metrics (async wrapper for compatibility)."""
@@ -90,7 +119,8 @@ class PerformanceTracker:
     def _update_metrics(self) -> None:
         """Update performance metrics."""
         self._performance_metrics = self._calculate_metrics(self._trades)
-        self._last_calculation = datetime.utcnow()
+        from datetime import datetime, timezone
+        self._last_calculation = datetime.now(timezone.utc)
     
     def _calculate_metrics(self, trades: List[TradeExecution]) -> PerformanceMetrics:
         """Calculate performance metrics from trades."""
@@ -129,8 +159,9 @@ class PerformanceTracker:
             period_start = min(t.execution_time for t in trades)
             period_end = max(t.execution_time for t in trades)
         else:
-            period_start = datetime.utcnow()
-            period_end = datetime.utcnow()
+            from datetime import datetime, timezone
+            period_start = datetime.now(timezone.utc)
+            period_end = datetime.now(timezone.utc)
         
         return PerformanceMetrics(
             total_trades=total_trades,
@@ -229,13 +260,16 @@ class PerformanceTracker:
     
     def clear_old_data(self, days: int = 90) -> None:
         """Clear old trade data."""
-        cutoff_time = datetime.utcnow() - timedelta(days=days)
+        from datetime import datetime, timezone
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
         self._trades = [t for t in self._trades if t.execution_time >= cutoff_time]
         self._update_metrics()
     
     async def start(self) -> None:
         """Start the performance tracker."""
+        print("📊 [DEBUG] Starting performance tracker...")
         self.logger.info("Performance tracker started")
+        print("✅ [DEBUG] Performance tracker started successfully")
     
     async def close(self) -> None:
         """Close the performance tracker."""
@@ -245,4 +279,5 @@ class PerformanceTracker:
         """Reset all performance metrics."""
         self._trades = []
         self._performance_metrics = PerformanceMetrics()
-        self._last_calculation = datetime.utcnow() 
+        from datetime import datetime, timezone
+        self._last_calculation = datetime.now(timezone.utc) 

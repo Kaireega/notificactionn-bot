@@ -4,6 +4,7 @@ Logging utilities for the Market Adaptive Trading Bot.
 
 import logging
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -48,7 +49,10 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         except Exception as e:
-            print(f"Warning: Could not create log file: {e}")
+            print(f"❌ [DEBUG] Could not create log file: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
+    else:
+        pass # No debug print for already configured logger
     
     # Ensure propagation is set correctly
     logger.propagate = True

@@ -3,12 +3,13 @@ Configuration management for the Market Adaptive Trading Bot.
 """
 import os
 import yaml
+import traceback
 from typing import List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
 
-from src.core.models import TimeFrame, MarketCondition
+from ..core.models import TimeFrame, MarketCondition
 
 
 @dataclass
@@ -43,6 +44,8 @@ class RiskManagementConfig:
     stop_loss_atr_multiplier: float = 2.0
     trailing_stop: bool = True
     trailing_stop_atr_multiplier: float = 1.5
+    # Approval threshold for advanced risk manager (0..1, lower is safer)
+    max_risk_threshold: float = 0.6
 
 
 @dataclass
@@ -55,6 +58,12 @@ class NotificationConfig:
     daily_summary: bool = True
     trade_alerts: bool = True
     notification_cooldown: int = 300  # seconds
+    manual_trade_approval: bool = True
+    pre_trade_cooldown_seconds: int = 0
+
+    # Execution toggles
+    auto_execute: bool = False
+    live_trade_enabled: bool = False
 
 
 @dataclass
@@ -89,15 +98,36 @@ class PerformanceConfig:
     report_frequency: str = "daily"
 
 
+@dataclass
+class SimulationConfig:
+    """Simulation (backtest/forward-test) settings."""
+    enabled: bool = False
+    data_source: str = "csv"  # csv | oanda
+    start_date: str = "2024-01-01T00:00:00Z"
+    end_date: str = "2024-02-01T00:00:00Z"
+    initial_balance: float = 10000.0
+    slippage_pips: float = 0.1
+    spread_pips: float = 0.1
+    commission_rate: float = 0.0001  # 0.01%
+    execution_delay_ms: int = 100
+    csv_dir: str = "data/historical"
+
+
 class Config:
     """Main configuration class for the trading bot."""
     
     def __init__(self, config_path: str = None):
+        print("⚙️ [DEBUG] Initializing configuration...")
+        
         # Load environment variables
+        print("⚙️ [DEBUG] Loading environment variables...")
         load_dotenv()
         
         # Load YAML configuration
+        print("⚙️ [DEBUG] Loading YAML configuration...")
         self._load_yaml_config(config_path)
+        
+        print("✅ [DEBUG] Configuration initialized successfully")
         
         # Initialize sub-configs
         self.trading = TradingConfig()
@@ -107,6 +137,10 @@ class Config:
         self.ai_analysis = AIConfig()
         self.data_collection = DataCollectionConfig()
         self.performance = PerformanceConfig()
+        self.simulation = SimulationConfig()
+        
+        # Add backtesting alias for compatibility
+        self.backtesting = self.simulation
         
         # Load from YAML if available
         if hasattr(self, '_yaml_config'):
@@ -117,6 +151,9 @@ class Config:
         
         # Validate configuration
         self._validate_config()
+        # Safety defaults for production readiness
+        self.enable_db = False
+        self.enable_news = False
     
     def _load_yaml_config(self, config_path: str = None) -> None:
         """Load configuration from YAML file."""
@@ -174,6 +211,7 @@ class Config:
                 self.notifications.email_enabled = notif.get('email', {}).get('enabled', True)
                 self.notifications.daily_summary = notif.get('email', {}).get('daily_summary', True)
                 self.notifications.trade_alerts = notif.get('email', {}).get('trade_alerts', True)
+                self.notifications.live_trade_enabled = notif.get('live_trade_enabled', False)
             
             # AI analysis
             if 'ai_analysis' in self._yaml_config:
@@ -195,6 +233,21 @@ class Config:
                 self.data_collection.store_raw_data = dc.get('store_raw_data', True)
                 self.data_collection.compression = dc.get('compression', True)
                 self.data_collection.backup_frequency = dc.get('backup_frequency', 24)
+                # Optional toggles
+                self.enable_db = dc.get('enable_db', False)
+                self.enable_news = dc.get('enable_news', False)
+
+            # Simulation
+            if 'simulation' in self._yaml_config:
+                sim = self._yaml_config['simulation']
+                self.simulation.enabled = sim.get('enabled', False)
+                self.simulation.data_source = sim.get('data_source', 'csv')
+                self.simulation.start_date = sim.get('start_date', self.simulation.start_date)
+                self.simulation.end_date = sim.get('end_date', self.simulation.end_date)
+                self.simulation.initial_balance = sim.get('initial_balance', 10000.0)
+                self.simulation.slippage_pips = sim.get('slippage_pips', 0.1)
+                self.simulation.spread_pips = sim.get('spread_pips', 0.1)
+                self.simulation.csv_dir = sim.get('csv_dir', 'data/historical')
             
             # Performance
             if 'performance' in self._yaml_config:
@@ -251,6 +304,13 @@ class Config:
             # Development
             self.debug = os.getenv('DEBUG', 'False').lower() == 'true'
             self.environment = os.getenv('ENVIRONMENT', 'production')
+            # Safety toggles
+            if os.getenv('ENABLE_DB'):
+                self.enable_db = os.getenv('ENABLE_DB', 'false').lower() == 'true'
+            if os.getenv('ENABLE_NEWS'):
+                self.enable_news = os.getenv('ENABLE_NEWS', 'false').lower() == 'true'
+            if os.getenv('LIVE_TRADE_ENABLED'):
+                self.notifications.live_trade_enabled = os.getenv('LIVE_TRADE_ENABLED', 'false').lower() == 'true'
         
         except Exception as e:
             print(f"Error loading from environment: {e}")
@@ -293,7 +353,13 @@ class Config:
     
     @property
     def timeframes(self) -> List[TimeFrame]:
-        """Get list of timeframes to analyze."""
+        """Get list of timeframes to analyze (from YAML if present)."""
+        try:
+            yaml_tfs = self._yaml_config.get('multi_timeframe', {}).get('timeframes', None) if hasattr(self, '_yaml_config') else None
+            if yaml_tfs:
+                return [TimeFrame(tf) for tf in yaml_tfs]
+        except Exception:
+            pass
         return [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.H1]
     
     @property

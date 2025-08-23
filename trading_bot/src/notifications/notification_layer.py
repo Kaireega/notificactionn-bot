@@ -2,7 +2,8 @@
 Notification Layer - Sends trade alerts via multiple channels.
 """
 import asyncio
-from datetime import datetime
+import traceback
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 import json
@@ -10,17 +11,14 @@ import base64
 import io
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
-import plotly.graph_objects as go
-import plotly.io as pio
 
-from src.core.models import TradeDecision, NotificationMessage, UserResponse
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import TradeDecision, NotificationMessage, UserResponse
+from ..utils.config import Config
+from ..utils.logger import get_logger
 from .chart_generator import ChartGenerator
 from .callback_handler import CallbackHandler
 
@@ -48,6 +46,13 @@ class NotificationLayer:
         
         # Rate limiting
         self._last_notification_time: Dict[str, datetime] = {}
+
+        # External trade executor (set by main) for manual approvals
+        self._trade_executor = None
+
+    def set_trade_executor(self, executor):
+        """Register an async executor callable(decision) -> trade_id used by manual approvals."""
+        self._trade_executor = executor
     
     def _init_telegram(self) -> None:
         """Initialize Telegram bot."""
@@ -64,24 +69,41 @@ class NotificationLayer:
     def _init_email(self) -> None:
         """Initialize email configuration."""
         try:
+            print(f"📧 [DEBUG] Email enabled: {self.config.email_enabled}")
+            print(f"📧 [DEBUG] SMTP server: {self.config.smtp_server}")
+            print(f"📧 [DEBUG] SMTP port: {self.config.smtp_port}")
+            print(f"📧 [DEBUG] Email username: {self.config.email_username}")
+            print(f"📧 [DEBUG] Email password: {'*' * len(self.config.email_password) if self.config.email_password else 'None'}")
+            
             if self.config.email_enabled:
                 self.smtp_server = self.config.smtp_server
                 self.smtp_port = self.config.smtp_port
                 self.email_username = self.config.email_username
                 self.email_password = self.config.email_password
                 self.logger.info("Email configuration initialized")
+                print(f"✅ [DEBUG] Email configuration initialized successfully")
             else:
                 self.smtp_server = None
+                print(f"❌ [DEBUG] Email is disabled in configuration")
         except Exception as e:
             self.logger.error(f"Failed to initialize email configuration: {e}")
             self.smtp_server = None
+            print(f"❌ [DEBUG] Failed to initialize email configuration: {e}")
     
-    async def send_trade_alert(self, trade_decision: TradeDecision, chart_data: Optional[Dict] = None) -> bool:
+    async def send_trade_alert(self, trade_decision: TradeDecision, chart_data: Optional[Dict] = None, custom_message: Optional[str] = None) -> bool:
         """Send trade alert notification."""
         
         try:
+            # Rate limit per pair
+            try:
+                if not self.can_send_notification(trade_decision.recommendation.pair):
+                    self.logger.info(f"Cooldown active for {trade_decision.recommendation.pair}; skipping alert")
+                    return False
+            except Exception:
+                pass
+
             # Create notification message
-            notification = self._create_trade_notification(trade_decision, chart_data)
+            notification = self._create_trade_notification(trade_decision, chart_data, custom_message)
             
             # Add to queue
             self._notification_queue.append(notification)
@@ -100,7 +122,8 @@ class NotificationLayer:
             # Track sent notification
             if success:
                 self._sent_notifications[notification.id] = notification
-                self._last_notification_time[trade_decision.recommendation.pair] = datetime.utcnow()
+                from datetime import datetime, timezone
+                self._last_notification_time[trade_decision.recommendation.pair] = datetime.now(timezone.utc)
                 
                 # Register notification for callback handling
                 self.callback_handler.register_notification(notification)
@@ -114,7 +137,8 @@ class NotificationLayer:
     def _create_trade_notification(
         self, 
         trade_decision: TradeDecision, 
-        chart_data: Optional[Dict] = None
+        chart_data: Optional[Dict] = None,
+        custom_message: Optional[str] = None
     ) -> NotificationMessage:
         """Create notification message from trade decision."""
         
@@ -123,8 +147,8 @@ class NotificationLayer:
         # Create title
         title = f"🚨 {recommendation.signal.value.upper()} Signal: {recommendation.pair}"
         
-        # Create message
-        message = self._format_trade_message(trade_decision)
+        # Create message - use custom message if provided, otherwise use default formatting
+        message = custom_message if custom_message else self._format_trade_message(trade_decision)
         
         # Create interactive buttons
         buttons = [
@@ -135,10 +159,7 @@ class NotificationLayer:
             ]
         ]
         
-        # Generate chart if requested
-        chart_image = None
-        if self.config.send_charts and chart_data:
-            chart_image = self.chart_generator.generate_chart(chart_data)
+        # Charts are generated on demand in channel-specific senders
         
         return NotificationMessage(
             title=title,
@@ -153,17 +174,23 @@ class NotificationLayer:
         """Format trade decision into readable message."""
         
         rec = trade_decision.recommendation
+        # Safe numeric formatting
+        entry_str = f"{rec.entry_price:.5f}" if rec.entry_price is not None else "N/A"
+        sl_str = f"{rec.stop_loss:.5f}" if rec.stop_loss is not None else "N/A"
+        tp_str = f"{rec.take_profit:.5f}" if rec.take_profit is not None else "N/A"
+        conf_str = f"{rec.confidence:.1%}" if rec.confidence is not None else "N/A"
+        rr_str = f"{rec.risk_reward_ratio:.2f}" if rec.risk_reward_ratio is not None else "N/A"
         
         message = f"""
 🎯 {rec.signal.value.upper()} Signal Detected
 
 📊 Pair: {rec.pair}
-💰 Entry Price: {rec.entry_price:.5f if rec.entry_price else 'N/A'}
-🛑 Stop Loss: {rec.stop_loss:.5f if rec.stop_loss else 'N/A'}
-🎯 Take Profit: {rec.take_profit:.5f if rec.take_profit else 'N/A'}
+💰 Entry Price: {entry_str}
+🛑 Stop Loss: {sl_str}
+🎯 Take Profit: {tp_str}
 
-📈 Confidence: {rec.confidence:.1%}
-⚖️ Risk/Reward: {rec.risk_reward_ratio:.2f}
+📈 Confidence: {conf_str}
+⚖️ Risk/Reward: {rr_str}
 ⏱️ Hold Time: {rec.estimated_hold_time}
 🌍 Market Condition: {rec.market_condition.value.replace('_', ' ').title()}
 
@@ -188,10 +215,12 @@ class NotificationLayer:
             keyboard = InlineKeyboardMarkup(notification.buttons)
             
             # Send message
+            # Sanitize to avoid markdown parse errors
+            clean_message = notification.message.replace('*', '').replace('_', '').replace('`', '').replace('[', '').replace(']', '')
             await self.telegram_bot.send_message(
                 chat_id=self.config.telegram_chat_id,
-                text=notification.message,
-                parse_mode='Markdown',
+                text=clean_message,
+                parse_mode=None,
                 reply_markup=keyboard
             )
             
@@ -257,6 +286,11 @@ class NotificationLayer:
         """Create HTML version of email."""
         
         rec = notification.trade_decision.recommendation
+        entry_str = f"{rec.entry_price:.5f}" if rec.entry_price is not None else "N/A"
+        sl_str = f"{rec.stop_loss:.5f}" if rec.stop_loss is not None else "N/A"
+        tp_str = f"{rec.take_profit:.5f}" if rec.take_profit is not None else "N/A"
+        conf_str = f"{rec.confidence:.1%}" if rec.confidence is not None else "N/A"
+        rr_str = f"{rec.risk_reward_ratio:.2f}" if rec.risk_reward_ratio is not None else "N/A"
         
         html = f"""
         <html>
@@ -285,23 +319,23 @@ class NotificationLayer:
             <div class="details">
                 <div class="detail-row">
                     <span class="label">Entry Price:</span>
-                    <span>{rec.entry_price:.5f if rec.entry_price else 'N/A'}</span>
+                    <span>{entry_str}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Stop Loss:</span>
-                    <span>{rec.stop_loss:.5f if rec.stop_loss else 'N/A'}</span>
+                    <span>{sl_str}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Take Profit:</span>
-                    <span>{rec.take_profit:.5f if rec.take_profit else 'N/A'}</span>
+                    <span>{tp_str}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Confidence:</span>
-                    <span>{rec.confidence:.1%}</span>
+                    <span>{conf_str}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Risk/Reward:</span>
-                    <span>{rec.risk_reward_ratio:.2f}</span>
+                    <span>{rr_str}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Market Condition:</span>
@@ -397,7 +431,7 @@ class NotificationLayer:
 
 📍 Context: {context}
 ❌ Error: {error_message}
-⏰ Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
 
 Please check the system logs for more details.
 """
@@ -432,23 +466,57 @@ Please check the system logs for more details.
         if pair not in self._last_notification_time:
             return True
         
-        time_since_last = datetime.utcnow() - self._last_notification_time[pair]
+        from datetime import datetime, timezone
+        time_since_last = datetime.now(timezone.utc) - self._last_notification_time[pair]
         return time_since_last.total_seconds() >= self.config.notification_cooldown
     
+    async def _initialize_email_config(self):
+        """Initialize email configuration."""
+        try:
+            if self.config.email_enabled:
+                print(f"📧 [DEBUG] Email enabled: {self.config.email_enabled}")
+                print(f"📧 [DEBUG] SMTP server: {self.config.smtp_server}")
+                print(f"📧 [DEBUG] SMTP port: {self.config.smtp_port}")
+                print(f"📧 [DEBUG] Email username: {self.config.email_username}")
+                print(f"📧 [DEBUG] Email password: {'*' * len(self.config.email_password) if self.config.email_password else 'None'}")
+                
+                # Test email configuration
+                self.smtp_server = self.config.smtp_server
+                self.smtp_port = self.config.smtp_port
+                self.email_username = self.config.email_username
+                self.email_password = self.config.email_password
+                
+                print(f"✅ [DEBUG] Email configuration initialized successfully")
+                self.logger.info("Email configuration initialized")
+            else:
+                print(f"❌ [DEBUG] Email is disabled in configuration")
+        except Exception as e:
+            print(f"❌ [DEBUG] Failed to initialize email configuration: {e}")
+            self.logger.error(f"Failed to initialize email configuration: {e}")
+
     async def start(self) -> None:
         """Start the notification layer."""
         try:
-            self.logger.info("Starting notification layer...")
+            # Initialize Telegram bot
+            if self.config.telegram_enabled and self.config.telegram_bot_token:
+                self.telegram_bot = Bot(token=self.config.telegram_bot_token)
+                self.logger.info("Telegram bot initialized")
             
-            # Initialize notification channels
-            if self.config.telegram_enabled and not self.telegram_bot:
-                self.logger.warning("Telegram bot not initialized - notifications disabled")
-            
-            if self.config.email_enabled and not self.smtp_server:
-                self.logger.warning("Email configuration not set - email notifications disabled")
+            # Initialize email configuration
+            if self.config.email_enabled:
+                await self._initialize_email_config()
             
             self.logger.info("Notification layer started successfully")
+
+            # Start callback handler to process Accept/Edit/Deny actions
+            try:
+                await self.callback_handler.start()
+            except Exception as e:
+                self.logger.error(f"Failed to start callback handler: {e}")
+            
         except Exception as e:
+            print(f"❌ [DEBUG] Error starting notification layer: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error starting notification layer: {e}")
             raise
     
@@ -463,102 +531,147 @@ Please check the system logs for more details.
         except Exception as e:
             self.logger.error(f"Error closing notification layer: {e}") 
 
-    async def send_notification(self, message: str, notification_type: str = "TRADE"):
-        """Send a notification message."""
+    async def send_notification(self, notification_type: str, data: Dict[str, Any]) -> bool:
+        """Send notification based on type and data."""
+        self.logger.info(f"📢 Starting notification process: {notification_type}")
+        self.logger.info(f"📊 Notification data keys: {list(data.keys())}")
+        
         try:
             if notification_type == "STARTUP":
-                # Send startup message to all channels
-                if self.telegram_bot:
-                    try:
-                        await self.telegram_bot.send_message(
-                            chat_id=self.config.telegram_chat_id,
-                            text=message
-                        )
-                        self.logger.info("Telegram startup message sent successfully")
-                    except Exception as e:
-                        self.logger.error(f"Failed to send Telegram message: {e}")
-                        if "Chat not found" in str(e):
-                            self.logger.error("❌ TELEGRAM CHAT ID ERROR: Your chat ID is incorrect!")
-                            self.logger.error("To fix this:")
-                            self.logger.error("1. Start a chat with your bot @your_bot_name")
-                            self.logger.error("2. Send any message to the bot")
-                            self.logger.error("3. Visit: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates")
-                            self.logger.error("4. Find your chat_id in the response and update your .env file")
+                self.logger.info("🚀 Sending startup notification...")
+                success = await self._send_startup_notification(data)
+                self.logger.info(f"✅ Startup notification result: {success}")
+                return success
                 
-                if self.smtp_server and self.config.email_enabled:
-                    try:
-                        await self._send_email(
-                            subject="🤖 Trading Bot Started",
-                            body=message
-                        )
-                        self.logger.info("Email startup message sent successfully")
-                    except Exception as e:
-                        self.logger.error(f"Failed to send email: {e}")
-                    
-            elif notification_type == "TRADE":
-                # Send trade signals with charts
-                if self.telegram_bot:
-                    try:
-                        await self.telegram_bot.send_message(
-                            chat_id=self.config.telegram_chat_id,
-                            text=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send Telegram trade message: {e}")
+            elif notification_type == "TRADE_ALERT":
+                self.logger.info("📈 Sending trade alert notification...")
+                success = await self._send_trade_alert(data)
+                self.logger.info(f"✅ Trade alert result: {success}")
+                return success
                 
-                if self.smtp_server and self.config.email_enabled:
-                    try:
-                        await self._send_email(
-                            subject="📈 New Trade Signal",
-                            body=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send email trade message: {e}")
-                    
-            elif notification_type == "DAILY":
-                # Send daily summary
-                if self.telegram_bot:
-                    try:
-                        await self.telegram_bot.send_message(
-                            chat_id=self.config.telegram_chat_id,
-                            text=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send Telegram daily message: {e}")
-                
-                if self.smtp_server and self.config.email_enabled:
-                    try:
-                        await self._send_email(
-                            subject="📊 Daily Trading Summary",
-                            body=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send email daily message: {e}")
-                        
             elif notification_type == "LOOP_REPORT":
-                # Send loop report
-                if self.telegram_bot:
-                    try:
-                        await self.telegram_bot.send_message(
-                            chat_id=self.config.telegram_chat_id,
-                            text=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send Telegram loop report: {e}")
+                self.logger.info("📊 Sending loop report notification...")
+                success = await self._send_loop_report(data)
+                self.logger.info(f"✅ Loop report result: {success}")
+                return success
                 
-                if self.smtp_server and self.config.email_enabled:
-                    try:
-                        await self._send_email(
-                            subject="📊 Trading Loop Report",
-                            body=message
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Failed to send email loop report: {e}")
+            elif notification_type == "ERROR_ALERT":
+                self.logger.info("⚠️ Sending error alert notification...")
+                success = await self._send_error_alert(data)
+                self.logger.info(f"✅ Error alert result: {success}")
+                return success
+                
+            else:
+                self.logger.warning(f"⚠️ Unknown notification type: {notification_type}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error sending notification {notification_type}: {e}")
+            return False
+    
+    async def _send_startup_notification(self, data: Dict[str, Any]) -> bool:
+        """Send startup notification."""
+        try:
+            message = data.get('message', 'Bot started successfully')
             
-            self.logger.info(f"Notification process completed: {notification_type}")
+            if self.telegram_bot:
+                # Clean message for Telegram (remove special characters that cause parsing issues)
+                clean_message = message.replace('*', '').replace('_', '').replace('`', '').replace('[', '').replace(']', '')
+                await self.telegram_bot.send_message(
+                    chat_id=self.config.telegram_chat_id,
+                    text=clean_message,
+                    parse_mode=None  # Disable markdown parsing to avoid entity errors
+                )
+                self.logger.info("Telegram startup message sent successfully")
+            
+            print(f"📧 [DEBUG] Checking email condition: smtp_server={self.smtp_server}, email_enabled={self.config.email_enabled}")
+            if self.smtp_server and self.config.email_enabled:
+                print(f"📧 [DEBUG] Email condition met, sending startup email...")
+                await self._send_email(
+                    subject="🤖 Trading Bot Started",
+                    body=message
+                )
+                self.logger.info("Email startup message sent successfully")
+                print(f"✅ [DEBUG] Email startup message sent successfully")
+            else:
+                print(f"❌ [DEBUG] Email condition not met: smtp_server={self.smtp_server}, email_enabled={self.config.email_enabled}")
+            
+            return True
             
         except Exception as e:
-            self.logger.error(f"Error in notification system: {e}")
+            self.logger.error(f"Error sending startup notification: {e}")
+            return False
+    
+    async def _send_trade_alert(self, data: Dict[str, Any]) -> bool:
+        """Send trade alert notification."""
+        try:
+            # This would be called with trade decision data
+            # For now, just log that it was called
+            self.logger.info("Trade alert notification requested")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending trade alert: {e}")
+            return False
+    
+    async def _send_loop_report(self, data: Dict[str, Any]) -> bool:
+        """Send loop report notification."""
+        try:
+            message = data.get('message', 'Loop report')
+            
+            if self.telegram_bot:
+                # Clean message for Telegram (remove special characters that cause parsing issues)
+                clean_message = message.replace('*', '').replace('_', '').replace('`', '').replace('[', '').replace(']', '')
+                await self.telegram_bot.send_message(
+                    chat_id=self.config.telegram_chat_id,
+                    text=clean_message,
+                    parse_mode=None  # Disable markdown parsing to avoid entity errors
+                )
+                self.logger.info("Telegram loop report sent successfully")
+            
+            if self.smtp_server and self.config.email_enabled:
+                await self._send_email(
+                    subject="📊 Trading Loop Report",
+                    body=message
+                )
+                self.logger.info("Email loop report sent successfully")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending loop report: {e}")
+            return False
+    
+    async def _send_error_alert(self, data: Dict[str, Any]) -> bool:
+        """Send error alert notification."""
+        try:
+            error_message = data.get('message', 'Unknown error')
+            
+            if self.telegram_bot:
+                await self.telegram_bot.send_message(
+                    chat_id=self.config.telegram_chat_id,
+                    text=f"⚠️ ERROR ALERT\n\n{error_message}",
+                    parse_mode='Markdown'
+                )
+                self.logger.info("Telegram error alert sent successfully")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending error alert: {e}")
+            return False
+
+    async def execute_approved_trade(self, trade_decision: TradeDecision) -> Optional[str]:
+        """Execute a trade after manual approval using the registered executor."""
+        try:
+            if self._trade_executor is None:
+                self.logger.error("Trade executor not set; cannot execute approved trade")
+                return None
+            trade_id = await self._trade_executor(trade_decision)
+            return trade_id
+        except Exception as e:
+            self.logger.error(f"Error executing approved trade: {e}")
+            return None
 
     async def _send_email(self, subject: str, body: str) -> bool:
         """Send a simple email message."""

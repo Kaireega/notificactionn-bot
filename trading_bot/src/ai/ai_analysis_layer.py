@@ -3,17 +3,18 @@ AI Analysis Layer - Uses OpenAI to analyze market conditions and generate trade 
 """
 import asyncio
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+import traceback
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Any, Tuple
 from decimal import Decimal
 import openai
 
-from src.core.models import (
+from ..core.models import (
     CandleData, MarketContext, MarketCondition, TradeRecommendation, 
     TradeSignal, TechnicalIndicators, TimeFrame
 )
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..utils.config import Config
+from ..utils.logger import get_logger
 from .technical_analyzer import TechnicalAnalyzer
 from .multi_timeframe_analyzer import MultiTimeframeAnalyzer
 
@@ -26,13 +27,20 @@ class AIAnalysisLayer:
         self.logger = get_logger(__name__)
         
         # Initialize OpenAI client
-        self.openai_client = openai.OpenAI(api_key=config.openai_api_key)
+        if config.openai_api_key:
+            self.openai_client = openai.OpenAI(api_key=config.openai_api_key)
+            self.logger.info("OpenAI client initialized successfully")
+        else:
+            self.openai_client = None
+            self.logger.warning("OpenAI API key not provided - AI analysis disabled")
         
         # Initialize technical analyzer
         self.technical_analyzer = TechnicalAnalyzer()
+        self.technical_analyzer.logger = self.logger  # Set logger for technical analyzer
         
         # Initialize multi-timeframe analyzer
         self.multi_timeframe_analyzer = MultiTimeframeAnalyzer()
+        self.multi_timeframe_analyzer.logger = self.logger  # Set logger for multi-timeframe analyzer
         
         # Rate limiting
         self._last_analysis_time: Dict[str, datetime] = {}
@@ -238,7 +246,8 @@ Provide your analysis in JSON format:
                 # Update cache
                 cache_key = f"{pair}_{timeframe.value}"
                 self._analysis_cache[cache_key] = recommendation
-                self._last_analysis_time[pair] = datetime.utcnow()
+                from datetime import datetime, timezone
+                self._last_analysis_time[pair] = datetime.now(timezone.utc)
             else:
                 self.logger.debug(f"❌ No AI recommendation generated for {pair} on {timeframe}")
             
@@ -253,7 +262,8 @@ Provide your analysis in JSON format:
         if pair not in self._last_analysis_time:
             return True
         
-        time_since_last = datetime.utcnow() - self._last_analysis_time[pair]
+        from datetime import datetime, timezone
+        time_since_last = datetime.now(timezone.utc) - self._last_analysis_time[pair]
         return time_since_last.total_seconds() >= self.config.ai_analysis_frequency
     
     def _prepare_market_data(
@@ -481,7 +491,7 @@ Provide your analysis in JSON format:
                 news_sentiment=0.0,  # Placeholder
                 economic_events=[],  # Placeholder
                 key_levels=key_levels,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
         except Exception as e:
@@ -552,41 +562,26 @@ Provide your analysis in JSON format:
         except Exception:
             return False
     
-    async def analyze_multiple_timeframes(
-        self, 
-        pair: str, 
-        candles_by_timeframe: Dict[TimeFrame, List[CandleData]],
-        market_context: MarketContext
-    ) -> tuple[Optional[TradeRecommendation], Dict[TimeFrame, TechnicalIndicators]]:
-        """Analyze multiple timeframes and generate consensus recommendation."""
+    async def analyze_multiple_timeframes(self, pair: str, candles_by_timeframe: Dict[TimeFrame, List[CandleData]], 
+                                        market_context: MarketContext) -> Tuple[Optional[TradeRecommendation], Optional[TechnicalIndicators]]:
+        """Analyze multiple timeframes and generate trading recommendation."""
         try:
-            # Use the new multi-timeframe analyzer
-            technical_indicators = {}
+            # Calculate technical indicators for the primary timeframe
+            primary_timeframe = list(candles_by_timeframe.keys())[0]
+            primary_candles = candles_by_timeframe[primary_timeframe]
             
-            # Calculate technical indicators for each timeframe
-            for timeframe, candles in candles_by_timeframe.items():
-                if candles and len(candles) >= 20:
-                    technical_indicators[timeframe] = self.technical_analyzer.calculate_indicators(candles)
+            technical_indicators = self.technical_analyzer.calculate_indicators(primary_candles)
             
-            # Perform comprehensive multi-timeframe analysis
-            recommendation = await self.multi_timeframe_analyzer.analyze_all_timeframes(
-                pair, candles_by_timeframe, market_context, technical_indicators
+            # Perform multi-timeframe analysis
+            recommendation = await self.multi_timeframe_analyzer.analyze(
+                pair, candles_by_timeframe, technical_indicators, market_context
             )
-            
-            if recommendation:
-                # Update cache
-                cache_key = f"{pair}_multi_timeframe"
-                self._analysis_cache[cache_key] = recommendation
-                self._last_analysis_time[pair] = datetime.utcnow()
-                
-                self.logger.info(f"Multi-timeframe analysis completed for {pair}: {recommendation.signal.value} "
-                               f"with confidence {recommendation.confidence:.2f}")
             
             return recommendation, technical_indicators
             
         except Exception as e:
             self.logger.error(f"Error in multi-timeframe analysis for {pair}: {e}")
-            return None, {}
+            return None, None
     
     def _generate_consensus_recommendation(
         self, 
@@ -615,6 +610,23 @@ Provide your analysis in JSON format:
         # Use the recommendation with highest confidence as base
         best_recommendation = max(recommendations, key=lambda x: x.confidence)
         
+        # Check risk/reward ratio for WINNING trades - Made more aggressive
+        risk_reward_ratio = best_recommendation.get('risk_reward_ratio', 1.0)
+
+        # Get minimum from config or use default
+        if self.config and hasattr(self.config, 'ai_analysis') and hasattr(self.config.ai_analysis, 'risk_reward_ratio_minimum'):
+            min_risk_reward = self.config.ai_analysis.risk_reward_ratio_minimum
+        else:
+            min_risk_reward = 1.1  # Default to 1.1 for more trades
+
+        print(f"📈 [DEBUG] {pair}: Risk/reward ratio: {risk_reward_ratio:.2f}, Minimum required: {min_risk_reward:.2f}")
+
+        if risk_reward_ratio < min_risk_reward:
+            print(f"❌ [DEBUG] {pair}: Risk/reward ratio {risk_reward_ratio:.2f} below minimum {min_risk_reward:.2f}")
+            return None
+
+        print(f"✅ [DEBUG] {pair}: Risk/reward ratio passed")
+
         # Create consensus recommendation
         consensus = TradeRecommendation(
             pair=pair,
@@ -625,7 +637,7 @@ Provide your analysis in JSON format:
             confidence=avg_confidence,
             market_condition=best_recommendation.market_condition,
             reasoning=f"Consensus from {len(recommendations)} timeframes: {best_recommendation.reasoning}",
-            risk_reward_ratio=best_recommendation.risk_reward_ratio,
+            risk_reward_ratio=risk_reward_ratio,
             estimated_hold_time=best_recommendation.estimated_hold_time
         )
         
@@ -641,6 +653,7 @@ Provide your analysis in JSON format:
         """Start the AI analysis layer."""
         try:
             self.logger.info("Starting AI analysis layer...")
+            
             # Initialize OpenAI client
             if not self.config.openai_api_key:
                 self.logger.warning("OpenAI API key not configured - AI analysis will be limited")
@@ -649,6 +662,8 @@ Provide your analysis in JSON format:
             
             self.logger.info("AI analysis layer started successfully")
         except Exception as e:
+            print(f"❌ [DEBUG] Error starting AI analysis layer: {e}")
+            print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error starting AI analysis layer: {e}")
             raise
     

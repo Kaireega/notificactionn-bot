@@ -1,16 +1,17 @@
 """
 Multi-Timeframe Analyzer - Advanced analysis across multiple timeframes.
 """
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from decimal import Decimal
 import statistics
 
-from src.core.models import (
+from ..core.models import (
     CandleData, TimeFrame, MarketContext, TradeRecommendation, 
-    TradeSignal, TechnicalIndicators
+    TradeSignal, TechnicalIndicators, MarketCondition
 )
-from src.utils.logger import get_logger
+from ..utils.logger import get_logger
 
 
 class MultiTimeframeAnalyzer:
@@ -27,131 +28,134 @@ class MultiTimeframeAnalyzer:
             TimeFrame.H1: 0.2    # 20% weight - long-term context
         }
         
-        # Signal strength thresholds
+        # Signal strength thresholds - Made more aggressive for testing
         self.signal_thresholds = {
-            'strong_buy': 0.8,
-            'buy': 0.6,
-            'neutral': 0.4,
-            'sell': 0.6,
-            'strong_sell': 0.8
+            'strong_buy': 0.4,  # Lowered from 0.8
+            'buy': 0.2,         # Lowered from 0.6
+            'neutral': 0.1,     # Lowered from 0.4
+            'sell': 0.2,        # Lowered from 0.6
+            'strong_sell': 0.4  # Lowered from 0.8
         }
     
-    async def analyze_all_timeframes(
-        self, 
-        pair: str, 
-        candles_by_timeframe: Dict[TimeFrame, List[CandleData]],
-        market_context: MarketContext,
-        technical_indicators: Dict[TimeFrame, TechnicalIndicators]
-    ) -> Optional[TradeRecommendation]:
-        """Analyze all timeframes and generate consensus recommendation."""
-        
+    async def analyze(self, pair: str, candles_by_timeframe: Dict[TimeFrame, List[CandleData]], 
+                     technical_indicators: TechnicalIndicators, market_context: MarketContext) -> Optional[TradeRecommendation]:
+        """Analyze multiple timeframes and generate consensus recommendation."""
         try:
+            # Store for ATR calculation in consensus
+            self.last_candles_by_timeframe = candles_by_timeframe
             # Analyze each timeframe
             timeframe_analyses = {}
-            
             for timeframe, candles in candles_by_timeframe.items():
-                if candles and len(candles) >= 20:
-                    analysis = await self._analyze_single_timeframe(
-                        pair, candles, timeframe, technical_indicators.get(timeframe)
-                    )
-                    if analysis:
+                try:
+                    if len(candles) >= 20:  # Minimum candles required
+                        analysis = await self._analyze_single_timeframe(
+                            pair, timeframe, candles, technical_indicators, market_context
+                        )
                         timeframe_analyses[timeframe] = analysis
+                except Exception as e:
+                    self.logger.error(f"Invalid timeframe {timeframe} for {pair}: {e}")
+                    continue
             
-            if not timeframe_analyses:
+            if len(timeframe_analyses) < 2:
                 return None
             
             # Generate consensus recommendation
-            consensus = await self._generate_consensus_recommendation(
+            recommendation = await self._generate_consensus_recommendation(
                 pair, timeframe_analyses, market_context
             )
             
-            return consensus
+            return recommendation
             
         except Exception as e:
             self.logger.error(f"Error in multi-timeframe analysis for {pair}: {e}")
             return None
     
-    async def _analyze_single_timeframe(
-        self, 
-        pair: str, 
-        candles: List[CandleData], 
-        timeframe: TimeFrame,
-        indicators: Optional[TechnicalIndicators]
-    ) -> Optional[Dict[str, Any]]:
-        """Analyze a single timeframe."""
-        
+    async def _analyze_single_timeframe(self, pair: str, timeframe: TimeFrame, candles: List[CandleData], 
+                                      technical_indicators: TechnicalIndicators, market_context: MarketContext) -> Dict[str, Any]:
+        """Analyze a single timeframe and return analysis results."""
         try:
-            if not candles or len(candles) < 20:
+            
+            if len(candles) < 20:
                 return None
             
-            # Get current price
-            current_price = candles[-1].close
+            # Calculate basic price metrics
+            closes = [float(candle.close) for candle in candles]
+            highs = [float(candle.high) for candle in candles]
+            lows = [float(candle.low) for candle in candles]
             
-            # Calculate trend direction
-            trend_direction = self._calculate_trend_direction(candles)
-            
-            # Calculate momentum
-            momentum = self._calculate_momentum(candles)
+            current_price = closes[-1]
+            price_change = ((current_price - closes[0]) / closes[0]) * 100
             
             # Calculate volatility
-            volatility = self._calculate_volatility(candles)
+            volatility = (max(highs) - min(lows)) / current_price * 100
+            
+            # Determine trend
+            if price_change > 0.1:
+                trend = "BULLISH"
+            elif price_change < -0.1:
+                trend = "BEARISH"
+            else:
+                trend = "NEUTRAL"
             
             # Analyze technical indicators
-            technical_score = self._analyze_technical_indicators(indicators) if indicators else 0.0
+            signal_strength = 0.0
+            signal_direction = "NEUTRAL"
             
-            # Calculate signal strength
-            signal_strength = self._calculate_signal_strength(
-                trend_direction, momentum, volatility, technical_score, timeframe
-            )
-            
-            # Determine signal type
-            signal_type = self._determine_signal_type(signal_strength)
-            
-            # Calculate trade levels
-            entry_price, stop_loss, take_profit = self._calculate_trade_levels(
-                candles, signal_type, timeframe
-            )
-            
-            # Calculate risk/reward ratio
-            risk_reward_ratio = self._calculate_risk_reward_ratio(entry_price, stop_loss, take_profit)
-            
-            # Calculate estimated hold time based on timeframe
-            if timeframe == TimeFrame.M1:
-                estimated_hold_time = 30  # 30 minutes
-            elif timeframe == TimeFrame.M5:
-                estimated_hold_time = 60  # 1 hour
-            elif timeframe == TimeFrame.M15:
-                estimated_hold_time = 120  # 2 hours
-            elif timeframe == TimeFrame.H1:
-                estimated_hold_time = 240  # 4 hours
+            if technical_indicators and hasattr(technical_indicators, 'rsi'):
+                # RSI analysis
+                if technical_indicators.rsi is not None:
+                    if technical_indicators.rsi > 70:
+                        signal_strength += 0.3
+                        signal_direction = "SELL"
+                    elif technical_indicators.rsi < 30:
+                        signal_strength += 0.3
+                        signal_direction = "BUY"
+                
+                # MACD analysis
+                if technical_indicators.macd is not None and technical_indicators.macd_signal is not None:
+                    if technical_indicators.macd > technical_indicators.macd_signal:
+                        signal_strength += 0.2
+                        if signal_direction == "NEUTRAL":
+                            signal_direction = "BUY"
+                    else:
+                        signal_strength -= 0.2
+                        if signal_direction == "NEUTRAL":
+                            signal_direction = "SELL"
+                
+                # EMA analysis
+                if hasattr(technical_indicators, 'ema_fast') and hasattr(technical_indicators, 'ema_slow'):
+                    if technical_indicators.ema_fast is not None and technical_indicators.ema_slow is not None:
+                        if technical_indicators.ema_fast > technical_indicators.ema_slow:
+                            signal_strength += 0.2
+                            if signal_direction == "NEUTRAL":
+                                signal_direction = "BUY"
+                        else:
+                            signal_strength -= 0.2
+                            if signal_direction == "NEUTRAL":
+                                signal_direction = "SELL"
             else:
-                estimated_hold_time = 180  # 3 hours default
+                return None
             
-            # Adjust based on signal strength
-            if 'strong' in signal_type:
-                estimated_hold_time = int(estimated_hold_time * 1.5)
+            confidence = min(1.0, abs(signal_strength))
             
-            # Cap at maximum 5 hours
-            estimated_hold_time = min(estimated_hold_time, 300)
-            
-            return {
-                'signal_type': signal_type,
-                'signal_strength': signal_strength,
-                'trend_direction': trend_direction,
-                'momentum': momentum,
+            result = {
+                'timeframe': timeframe.value,
+                'trend': trend,
+                'price_change': price_change,
                 'volatility': volatility,
-                'technical_score': technical_score,
-                'entry_price': entry_price,
-                'stop_loss': stop_loss,
-                'take_profit': take_profit,
-                'risk_reward_ratio': risk_reward_ratio,
-                'confidence': abs(signal_strength),
-                'estimated_hold_time': estimated_hold_time
+                'signal_strength': signal_strength,
+                'signal_direction': signal_direction,
+                'current_price': current_price,
+                'confidence': confidence
             }
             
+            return result
+            
         except Exception as e:
-            self.logger.error(f"Error analyzing timeframe {timeframe} for {pair}: {e}")
+            self.logger.error(f"Error analyzing {timeframe} timeframe for {pair}: {e}")
             return None
+    
+
     
     def _calculate_trend_direction(self, candles: List[CandleData]) -> float:
         """Calculate trend direction (-1 to 1, where 1 is strongly bullish)."""
@@ -212,33 +216,33 @@ class MultiTimeframeAnalyzer:
         # RSI analysis
         if indicators.rsi is not None:
             if indicators.rsi < 30:
-                score += 0.3  # Oversold - bullish
+                score += 0.5  # Oversold - bullish (increased from 0.3)
             elif indicators.rsi > 70:
-                score -= 0.3  # Overbought - bearish
+                score -= 0.5  # Overbought - bearish (increased from 0.3)
             count += 1
         
         # MACD analysis
         if indicators.macd is not None and indicators.macd_signal is not None:
             if indicators.macd > indicators.macd_signal:
-                score += 0.2  # Bullish MACD
+                score += 0.4  # Bullish MACD (increased from 0.2)
             else:
-                score -= 0.2  # Bearish MACD
+                score -= 0.4  # Bearish MACD (increased from 0.2)
             count += 1
         
         # EMA analysis
         if indicators.ema_fast is not None and indicators.ema_slow is not None:
             if indicators.ema_fast > indicators.ema_slow:
-                score += 0.2  # Bullish EMA
+                score += 0.4  # Bullish EMA (increased from 0.2)
             else:
-                score -= 0.2  # Bearish EMA
+                score -= 0.4  # Bearish EMA (increased from 0.2)
             count += 1
         
         # Stochastic analysis
         if indicators.stoch_k is not None:
             if indicators.stoch_k < 20:
-                score += 0.1  # Oversold
+                score += 0.3  # Oversold (increased from 0.1)
             elif indicators.stoch_k > 80:
-                score -= 0.1  # Overbought
+                score -= 0.3  # Overbought (increased from 0.1)
             count += 1
         
         return score / count if count > 0 else 0.0
@@ -275,7 +279,8 @@ class MultiTimeframeAnalyzer:
         )
         
         # Adjust for volatility (higher volatility = lower confidence)
-        volatility_penalty = min(volatility * 10, 0.3)
+        # Reduced penalty multiplier from 10 to 2 for more reasonable signal strength
+        volatility_penalty = min(volatility * 2, 0.1)  # Max 10% penalty instead of 30%
         score *= (1 - volatility_penalty)
         
         return max(-1.0, min(1.0, score))
@@ -327,15 +332,15 @@ class MultiTimeframeAnalyzer:
         # Cap at maximum 5 hours (300 minutes)
         hold_time = min(hold_time, 300)
         
-        # Calculate levels based on ATR
+        # Calculate levels based on ATR for WINNING trades
         if signal_type in ['buy', 'strong_buy']:
             entry_price = current_price
-            stop_loss = current_price - (atr * 2)  # 2x ATR for stop loss
-            take_profit = current_price + (atr * 4)  # 4x ATR for take profit (1:2 risk/reward)
+            stop_loss = current_price - (atr * 1.5)  # Tighter stop loss for better R:R
+            take_profit = current_price + (atr * 3)  # 3x ATR for take profit (1:2 risk/reward)
         elif signal_type in ['sell', 'strong_sell']:
             entry_price = current_price
-            stop_loss = current_price + (atr * 2)  # 2x ATR for stop loss
-            take_profit = current_price - (atr * 4)  # 4x ATR for take profit (1:2 risk/reward)
+            stop_loss = current_price + (atr * 1.5)  # Tighter stop loss for better R:R
+            take_profit = current_price - (atr * 3)  # 3x ATR for take profit (1:2 risk/reward)
         else:
             entry_price = current_price
             stop_loss = current_price
@@ -403,44 +408,127 @@ class MultiTimeframeAnalyzer:
                 
                 weighted_signals[signal] = weighted_signals.get(signal, 0) + (signal_strength * weight)
                 total_weight += weight
-            
+                
             # Find dominant signal
             if not weighted_signals:
                 return None
             
             dominant_signal = max(weighted_signals.items(), key=lambda x: abs(x[1]))
             
-            # Only proceed if signal is strong enough
-            if abs(dominant_signal[1]) < 0.1:
+            # Get signal strength threshold from config (default to 0.01 if not set) - Made more aggressive
+            signal_threshold = getattr(self, 'config', None) and getattr(self.config, 'signal_strength_threshold', 0.01) or 0.01
+            
+            # Only proceed if signal is strong enough for WINNING trades
+            if abs(dominant_signal[1]) < signal_threshold:
+                return None
+            
+            # Additional WINNING trade filters
+            # 1. Check if we have multiple timeframe confirmation
+            if len(timeframe_analyses) < 2:
+                return None
+            
+            # 2. Check if signal is consistent across timeframes
+            consistent_signals = 0
+            for timeframe, analysis in timeframe_analyses.items():
+                expected_direction = dominant_signal[0].replace('weak_', '').upper()
+                actual_direction = analysis.get('signal_direction', 'NEUTRAL')
+                if analysis and actual_direction == expected_direction:
+                    consistent_signals += 1
+            
+            if consistent_signals < 2:
                 return None
             
             # Get best analysis for trade levels
             best_analysis = max(timeframe_analyses.values(), key=lambda x: abs(x['signal_strength']))
             
-            # Determine final signal
+            # Calculate trade levels based on current price and ATR
+            current_price = Decimal(str(best_analysis['current_price']))
+            
+            # Get candles from the best timeframe for ATR calculation
+            best_timeframe = None
+            for tf, analysis in timeframe_analyses.items():
+                if analysis == best_analysis:
+                    best_timeframe = tf
+                    break
+            
+            if not best_timeframe:
+                return None
+            
+            # Calculate ATR for stop loss and take profit from the selected timeframe
+            # Use candles passed to the analyzer for the best timeframe
+            from decimal import Decimal as _D
+            atr = self._calculate_atr(candles=[])  # fallback
+            try:
+                # best_timeframe is determined above; candles_by_timeframe is available in caller
+                # We pass through by storing it in the analyzer on analyze(), but here we recompute defensively
+                # If unavailable, keep a minimal non-zero ATR to avoid div-by-zero
+                if hasattr(self, 'last_candles_by_timeframe') and self.last_candles_by_timeframe:
+                    best_candles = self.last_candles_by_timeframe.get(best_timeframe, [])
+                    atr = self._calculate_atr(best_candles)
+                if atr <= 0:
+                    atr = _D('0.0001')
+            except Exception:
+                atr = _D('0.0001')
+            
+            # Calculate trade levels
             if dominant_signal[0] in ['buy', 'weak_buy']:
                 final_signal = TradeSignal.BUY
+                entry_price = current_price
+                stop_loss = current_price - (atr * Decimal('1.5'))
+                take_profit = current_price + (atr * Decimal('3.0'))
             elif dominant_signal[0] in ['sell', 'weak_sell']:
                 final_signal = TradeSignal.SELL
+                entry_price = current_price
+                stop_loss = current_price + (atr * Decimal('1.5'))
+                take_profit = current_price - (atr * Decimal('3.0'))
             else:
                 final_signal = TradeSignal.HOLD
+                entry_price = current_price
+                stop_loss = current_price
+                take_profit = current_price
             
             # Calculate consensus confidence
             consensus_confidence = abs(dominant_signal[1]) / total_weight
             
-            # Create recommendation
-            recommendation = TradeRecommendation(
+            # Calculate risk/reward ratio
+            risk_reward_ratio = self._calculate_risk_reward_ratio(entry_price, stop_loss, take_profit)
+            
+            # Check risk/reward ratio for WINNING trades - Made more aggressive
+            min_risk_reward = 1.2  # Lowered from 2.0
+            
+            if risk_reward_ratio < min_risk_reward:
+                return None
+            
+            # Check minimum confidence for WINNING trades - Made more aggressive
+            min_confidence = 0.3  # Lowered from 0.7
+            
+            if consensus_confidence < min_confidence:
+                return None
+            
+            # Additional WINNING trade filters - Market conditions - Made more aggressive
+            # Only trade in favorable market conditions
+            
+            if market_context.condition in {MarketCondition.RANGING}:
+                # For consolidation/ranging, need stronger signals - Lowered threshold
+                if consensus_confidence < 0.4:  # Lowered from 0.8
+                    return None
+            else:
+                pass # No special confidence requirement for other conditions
+            
+            # Create WINNING trade recommendation
+                from datetime import datetime, timezone
+                recommendation = TradeRecommendation(
                 pair=pair,
                 signal=final_signal,
-                entry_price=best_analysis['entry_price'],
-                stop_loss=best_analysis['stop_loss'],
-                take_profit=best_analysis['take_profit'],
+                entry_price=entry_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
                 confidence=consensus_confidence,
                 market_condition=market_context.condition,
-                reasoning=f"Multi-timeframe consensus: {len(timeframe_analyses)} timeframes analyzed",
-                risk_reward_ratio=best_analysis['risk_reward_ratio'],
-                estimated_hold_time=timedelta(minutes=best_analysis['estimated_hold_time']),
-                timestamp=datetime.utcnow()
+                reasoning=f"WINNING trade setup: {len(timeframe_analyses)} timeframes, R:R {risk_reward_ratio:.2f}, Conf {consensus_confidence:.3f}",
+                risk_reward_ratio=risk_reward_ratio,
+                estimated_hold_time=timedelta(minutes=120),
+                    timestamp=datetime.now(timezone.utc)
             )
             
             return recommendation

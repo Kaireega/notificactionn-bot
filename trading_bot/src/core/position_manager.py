@@ -9,11 +9,18 @@ from typing import Dict, List, Optional, Any
 from decimal import Decimal
 import math
 
+import sys
+from pathlib import Path
+
+# Add the project root to the path to import API modules
+root_dir = Path(__file__).parent.parent.parent.parent
+sys.path.append(str(root_dir))
+
 from api.oanda_api import OandaApi
 from models.open_trade import OpenTrade
-from src.core.models import TradeDecision, MarketContext, TimeFrame
-from src.utils.config import Config
-from src.utils.logger import get_logger
+from ..core.models import TradeDecision, MarketContext, TimeFrame
+from ..utils.config import Config
+from ..utils.logger import get_logger
 
 
 class PositionManager:
@@ -50,9 +57,11 @@ class PositionManager:
     
     async def start(self) -> None:
         """Start position monitoring."""
+        print("💰 [DEBUG] Starting position manager...")
         self.logger.info("Starting position manager...")
         self._is_running = True
         self._monitoring_task = asyncio.create_task(self._position_monitoring_loop())
+        print("✅ [DEBUG] Position manager started successfully")
         self.logger.info("Position manager started successfully")
     
     async def stop(self) -> None:
@@ -70,40 +79,62 @@ class PositionManager:
         self.logger.info("Position manager stopped")
     
     async def execute_trade(self, decision: TradeDecision, market_context: MarketContext) -> Optional[str]:
-        """Execute a trade decision with slippage management."""
+        """Execute a trade based on the decision."""
+        self.logger.info(f"📈 Starting trade execution for {decision.recommendation.pair}...")
+        self.logger.info(
+            f"🎯 {decision.recommendation.pair}: Signal: {decision.recommendation.signal.value}, Entry: {decision.recommendation.entry_price}"
+        )
+        
         try:
-            # Check if we can execute this trade
-            if not await self._can_execute_trade(decision):
-                return None
+            # Check if we already have a position for this pair
+            self.logger.info(f"🔍 {decision.recommendation.pair}: Checking existing positions...")
+            existing_position = await self._get_existing_position(decision.recommendation.pair)
             
-            # Calculate optimal entry with slippage consideration
-            entry_price, slippage = await self._calculate_optimal_entry(decision)
+            if existing_position:
+                self.logger.info(f"⚠️ {decision.recommendation.pair}: Found existing position, checking if we should close it...")
+                should_close = await self._should_close_position(existing_position, decision, market_context)
+                
+                if should_close:
+                    self.logger.info(f"🔄 {decision.recommendation.pair}: Closing existing position...")
+                    close_result = await self._close_position(existing_position)
+                    if close_result:
+                        self.logger.info(f"✅ {decision.recommendation.pair}: Position closed successfully")
+                    else:
+                        self.logger.error(f"❌ {decision.recommendation.pair}: Failed to close position")
+                        return None
+                else:
+                    self.logger.info(f"ℹ️ {decision.recommendation.pair}: Keeping existing position")
+                    return existing_position['id']
             
-            # Execute the trade using existing OANDA API
-            trade_id = self.oanda_api.place_trade(
-                pair_name=decision.recommendation.pair,
-                units=float(decision.position_size),
-                direction=1 if decision.recommendation.signal.value == 'buy' else -1,
-                stop_loss=float(decision.modified_stop_loss) if decision.modified_stop_loss else None,
-                take_profit=float(decision.modified_take_profit) if decision.modified_take_profit else None
-            )
+            # Calculate position size
+            self.logger.info(f"💰 {decision.recommendation.pair}: Calculating position size...")
+            position_size = await self._calculate_position_size(decision, market_context)
+            self.logger.info(f"💰 {decision.recommendation.pair}: Position size: {position_size}")
+            
+            # Respect live trade toggle
+            if not self.config.notifications.live_trade_enabled:
+                self.logger.warning("LIVE TRADE DISABLED - Dry run: order not sent to broker")
+                trade_id = f"DRYRUN-{int(datetime.now(timezone.utc).timestamp())}"
+                await self._record_trade(decision, trade_id, position_size)
+                return trade_id
+
+            # Execute the trade
+            self.logger.info(f"🚀 {decision.recommendation.pair}: Executing trade...")
+            trade_id = await self._execute_trade_order(decision, position_size)
             
             if trade_id:
-                # Track the position
-                await self._track_new_position(trade_id, decision, entry_price, slippage, market_context)
+                self.logger.info(f"✅ {decision.recommendation.pair}: Trade executed successfully, ID: {trade_id}")
                 
-                self.logger.info(f"✅ Trade executed: {decision.recommendation.pair} "
-                               f"Signal={decision.recommendation.signal.value}, "
-                               f"Size={decision.position_size:.2f}, "
-                               f"Slippage={slippage:.5f}")
+                # Record the trade
+                await self._record_trade(decision, trade_id, position_size)
                 
                 return trade_id
             else:
-                self.logger.error(f"❌ Trade execution failed: {decision.recommendation.pair}")
+                self.logger.error(f"❌ {decision.recommendation.pair}: Trade execution failed")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Error executing trade: {e}")
+            self.logger.error(f"❌ Error executing trade for {decision.recommendation.pair}: {e}")
             return None
     
     async def _can_execute_trade(self, decision: TradeDecision) -> bool:

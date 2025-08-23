@@ -1,10 +1,12 @@
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
+import certifi
 
 def dailyfx_com():
 
-    resp = requests.get("https://www.dailyfx.com/sentiment")
+    # Verify with trusted CA bundle
+    resp = requests.get("https://www.dailyfx.com/sentiment", verify=certifi.where(), timeout=20)
 
     #print(resp.content)
     #print(resp.status_code)
