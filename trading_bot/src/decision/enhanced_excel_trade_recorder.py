@@ -135,12 +135,24 @@ class EnhancedExcelTradeRecorder:
             
             # Record technical indicators for each timeframe
             if technical_indicators:
-                print(f"📝 [DEBUG] Recording {len(technical_indicators)} technical indicator sets...")
-                for timeframe, indicators in technical_indicators.items():
+                # Handle both single TechnicalIndicators object and dictionary
+                if hasattr(technical_indicators, 'rsi'):
+                    # Single TechnicalIndicators object
+                    print(f"📝 [DEBUG] Recording single technical indicators set...")
                     indicators_record = self._create_indicators_record(
-                        indicators, decision.recommendation.pair, timeframe, timestamp
+                        technical_indicators, decision.recommendation.pair, TimeFrame.M5, timestamp
                     )
                     self.indicators_data.append(indicators_record)
+                elif isinstance(technical_indicators, dict):
+                    # Dictionary of indicators by timeframe
+                    print(f"📝 [DEBUG] Recording {len(technical_indicators)} technical indicator sets...")
+                    for timeframe, indicators in technical_indicators.items():
+                        indicators_record = self._create_indicators_record(
+                            indicators, decision.recommendation.pair, timeframe, timestamp
+                        )
+                        self.indicators_data.append(indicators_record)
+                else:
+                    print(f"📝 [DEBUG] Unknown technical indicators format: {type(technical_indicators)}")
             
             # Record AI outputs
             if ai_outputs:

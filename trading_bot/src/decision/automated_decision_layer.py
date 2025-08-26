@@ -15,7 +15,7 @@ from ..core.models import (
 )
 from ..utils.config import Config
 from ..utils.logger import get_logger
-from .risk_manager import RiskManager
+from .risk_manager_improved import ImprovedRiskManager as RiskManager
 from .performance_tracker import PerformanceTracker
 from .enhanced_excel_trade_recorder import EnhancedExcelTradeRecorder
 
@@ -64,7 +64,7 @@ class AutomatedDecisionLayer:
         
         try:
             # Check if we should process this recommendation
-            if not self._should_process_recommendation(recommendation):
+            if not await self._should_process_recommendation(recommendation):
                 self.logger.info(
                     f"🚫 Skipping recommendation for {recommendation.pair}: "
                     f"confidence {recommendation.confidence:.2f} below threshold "
@@ -73,8 +73,9 @@ class AutomatedDecisionLayer:
                 return None
             
             # Apply risk management rules
+            fundamental_analysis = ai_outputs.get('fundamental_analysis') if ai_outputs else None
             risk_assessment = await self.risk_manager.assess_risk(
-                recommendation, current_price, market_context
+                recommendation, current_price, market_context, fundamental_analysis
             )
             
             # Ensure risk_assessment has all required fields
@@ -112,21 +113,33 @@ class AutomatedDecisionLayer:
                            f"Size={position_size['size']:.2f}, "
                            f"Risk=${position_size['risk_amount']:.2f}")
             
-            # Send pre-execution notification
-            await self._send_pre_execution_notification(decision, risk_assessment, 
-                                                       technical_indicators, market_context)
-            
             # Automatically execute the trade
             trade_id = await self._execute_trade_automatically(decision, market_context)
             
-            if trade_id:
-                # Send execution confirmation
+            # Set trade_id in decision for tracking
+            decision.trade_id = trade_id
+            
+            if trade_id and not trade_id.startswith('FAILED-') and not trade_id.startswith('ERROR-'):
+                # Send execution notification only after successful execution
                 await self._send_execution_notification(decision, trade_id, risk_assessment)
                 
                 # Update tracking
                 self._daily_trades.append(decision)
                 self._last_decision_time[recommendation.pair] = datetime.now(timezone.utc)
                 self._open_positions[recommendation.pair] = decision
+                
+                # Update risk manager with the new open position
+                position_added = self.risk_manager.add_open_position(recommendation.pair, {
+                    'trade_id': trade_id,
+                    'pair': recommendation.pair,
+                    'signal': recommendation.signal.value,
+                    'entry_price': float(recommendation.entry_price),
+                    'position_size': float(position_size['size']),
+                    'risk_amount': float(position_size['risk_amount'])
+                })
+                
+                if not position_added:
+                    self.logger.warning(f"Failed to add position to risk manager for {recommendation.pair}")
                 
                 # Log decision
                 self._log_decision(decision)
@@ -195,37 +208,15 @@ class AutomatedDecisionLayer:
                 return
             
             message = f"""
-🚀 AUTOMATED TRADE EXECUTION
+🚀 TRADE EXECUTED
 
-📊 Trade Details:
-• Pair: {decision.recommendation.pair}
-• Signal: {decision.recommendation.signal.value.upper()}
-• Entry Price: {decision.recommendation.entry_price}
-• Stop Loss: {decision.modified_stop_loss}
-• Take Profit: {decision.modified_take_profit}
-• Position Size: {decision.position_size:.2f}
-• Risk Amount: ${decision.risk_amount:.2f}
+📊 {decision.recommendation.pair} {decision.recommendation.signal.value.upper()}
+💰 Entry: {decision.recommendation.entry_price}
+🛑 Stop: {decision.modified_stop_loss}
+🎯 Target: {decision.modified_take_profit}
+📈 Size: {decision.position_size:.0f} units
 
-🔍 AI Analysis:
-• Confidence: {decision.recommendation.confidence:.1%}
-• Risk/Reward: {decision.recommendation.risk_reward_ratio:.2f}
-• Market Condition: {decision.recommendation.market_condition.value}
-• Hold Time: {decision.recommendation.estimated_hold_time}
-
-💡 AI Reasoning:
-{decision.recommendation.reasoning}
-
-⚡ Risk Management:
-• Risk Score: {risk_assessment.get('risk_score', 0):.2f}
-• Risk Notes: {decision.risk_management_notes}
-
-🔧 Technical Indicators:
-{self._format_technical_indicators(technical_indicators) if technical_indicators else 'N/A'}
-
-🌍 Market Context:
-{self._format_market_context(market_context) if market_context else 'N/A'}
-
-⏰ Executing at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ {datetime.now().strftime('%H:%M:%S')}
 """.strip()
             
             await self.notification_layer.send_trade_alert(
@@ -412,16 +403,46 @@ class AutomatedDecisionLayer:
         except Exception as e:
             self.logger.error(f"Error sending error notification: {e}")
     
-    def _format_technical_indicators(self, indicators: Dict[TimeFrame, TechnicalIndicators]) -> str:
+    def _format_technical_indicators(self, indicators: Any) -> str:
         """Format technical indicators for notification."""
         if not indicators:
             return "N/A"
         
         formatted = []
-        for timeframe, indicator in indicators.items():
-            formatted.append(f"• {timeframe.value}: RSI={indicator.rsi:.2f}, MACD={indicator.macd:.5f}")
         
-        return "\n".join(formatted)
+        # Handle single TechnicalIndicators object
+        if hasattr(indicators, 'rsi') and hasattr(indicators, 'macd'):
+            formatted.append(f"• RSI={indicators.rsi:.2f}, MACD={indicators.macd:.5f}")
+            if hasattr(indicators, 'bollinger_upper') and indicators.bollinger_upper:
+                formatted.append(f"• Bollinger: Upper={indicators.bollinger_upper:.5f}, Lower={indicators.bollinger_lower:.5f}")
+            if hasattr(indicators, 'ema_fast') and indicators.ema_fast:
+                formatted.append(f"• EMA: Fast={indicators.ema_fast:.5f}, Slow={indicators.ema_slow:.5f}")
+            if hasattr(indicators, 'atr') and indicators.atr:
+                formatted.append(f"• ATR={indicators.atr:.5f}")
+        
+        # Handle dictionary of indicators by timeframe
+        elif isinstance(indicators, dict):
+            for timeframe, indicator in indicators.items():
+                if hasattr(indicator, 'rsi') and hasattr(indicator, 'macd'):
+                    formatted.append(f"• {timeframe.value}: RSI={indicator.rsi:.2f}, MACD={indicator.macd:.5f}")
+                    if hasattr(indicator, 'bollinger_upper') and indicator.bollinger_upper:
+                        formatted.append(f"  Bollinger: Upper={indicator.bollinger_upper:.5f}, Lower={indicator.bollinger_lower:.5f}")
+                    if hasattr(indicator, 'ema_fast') and indicator.ema_fast:
+                        formatted.append(f"  EMA: Fast={indicator.ema_fast:.5f}, Slow={indicator.ema_slow:.5f}")
+                    if hasattr(indicator, 'atr') and indicator.atr:
+                        formatted.append(f"  ATR={indicator.atr:.5f}")
+        
+        # Handle list of indicators
+        elif isinstance(indicators, list):
+            for i, indicator in enumerate(indicators):
+                if hasattr(indicator, 'rsi') and hasattr(indicator, 'macd'):
+                    formatted.append(f"• Indicator {i+1}: RSI={indicator.rsi:.2f}, MACD={indicator.macd:.5f}")
+        
+        # Handle unknown format
+        else:
+            formatted.append(f"• Indicators: {str(indicators)[:100]}...")
+        
+        return "\n".join(formatted) if formatted else "N/A"
     
     def _format_market_context(self, market_context: Any) -> str:
         """Format market context for notification."""
@@ -433,7 +454,7 @@ class AutomatedDecisionLayer:
 • Trend Strength: {market_context.trend_strength:.2f}
 • News Sentiment: {market_context.news_sentiment}"""
     
-    def _should_process_recommendation(self, recommendation: TradeRecommendation) -> bool:
+    async def _should_process_recommendation(self, recommendation: TradeRecommendation) -> bool:
         """Check if recommendation meets basic criteria for processing."""
         
         # Check confidence threshold
@@ -444,7 +465,6 @@ class AutomatedDecisionLayer:
         
         # Check if we already have a recent decision for this pair
         if recommendation.pair in self._last_decision_time:
-            from datetime import datetime, timezone
             time_since_last = datetime.now(timezone.utc) - self._last_decision_time[recommendation.pair]
             if time_since_last.total_seconds() < self.config.min_decision_interval:
                 self.logger.debug(f"🔍 Rate limit check failed for {recommendation.pair}: "
@@ -459,11 +479,30 @@ class AutomatedDecisionLayer:
                               f"{len(today_trades)} >= {self.config.max_trades_per_day}")
             return False
         
-        # Check if we have an open position for this pair
+        # Check if we have an open position for this pair (check both local and actual positions)
         if recommendation.pair in self._open_positions:
-            self.logger.debug(f"🔍 Open position check failed for {recommendation.pair}: "
-                            f"Already have open position")
+            self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have open position in local tracking")
             return False
+        
+        # Check actual open positions from position manager
+        if self.position_manager:
+            try:
+                position_summary = await self.position_manager.get_position_summary()
+                actual_open_positions = position_summary.get('open_positions', {})
+                if recommendation.pair in actual_open_positions:
+                    self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have active trade (Position Manager)")
+                    return False
+            except Exception as e:
+                self.logger.warning(f"Error checking actual positions for {recommendation.pair}: {e}")
+        
+        # Also check risk manager's open positions
+        try:
+            risk_open_positions = self.risk_manager._shared_risk_data.get('open_positions', {})
+            if recommendation.pair in risk_open_positions:
+                self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have active trade (Risk Manager)")
+                return False
+        except Exception as e:
+            self.logger.warning(f"Error checking risk manager positions for {recommendation.pair}: {e}")
         
         self.logger.debug(f"✅ All checks passed for {recommendation.pair}: "
                          f"confidence={recommendation.confidence:.2f}, "
@@ -525,6 +564,14 @@ class AutomatedDecisionLayer:
                 closed_decision = self._open_positions.pop(pair)
                 await self.performance_tracker.record_trade(closed_decision, execution_price)
                 self.logger.info(f"Position closed for {pair} at {execution_price}")
+                
+                # Remove from risk manager tracking
+                try:
+                    if pair in self.risk_manager._shared_risk_data.get('open_positions', {}):
+                        del self.risk_manager._shared_risk_data['open_positions'][pair]
+                        self.logger.info(f"Removed {pair} from risk manager tracking")
+                except Exception as e:
+                    self.logger.warning(f"Error removing {pair} from risk manager: {e}")
                 
                 # Send exit notification
                 await self._send_exit_notification(closed_decision, execution_price, exit_reason)
@@ -633,7 +680,6 @@ class AutomatedDecisionLayer:
         """Clean up old decision data."""
         try:
             # Remove decisions older than 7 days
-            from datetime import datetime, timezone
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
             self._daily_trades = [
                 d for d in self._daily_trades 

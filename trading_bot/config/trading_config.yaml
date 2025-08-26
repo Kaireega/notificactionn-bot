@@ -2,22 +2,22 @@
 
 # Trading Settings
 trading:
-  risk_percentage: 2.0
-  max_trades_per_day: 10
-  default_timeframe: M5
+  risk_percentage: 5.0
+  max_trades_per_day: 20
+  default_timeframe: M1
   pairs:
     - EUR_USD
     - USD_JPY
     - GBP_JPY
   hold_time_settings:
-    min_hold_time_minutes: 30
-    max_hold_time_minutes: 300  # 5 hours
-    default_hold_time_minutes: 120  # 2 hours
+    min_hold_time_minutes: 5
+    max_hold_time_minutes: 240  # 4 hours max
+    default_hold_time_minutes: 60  # 1 hour default
     market_condition_hold_times:
-      news_reactionary: [30, 180]   # 30 min to 3 hours
-      reversal: [60, 300]           # 1 hour to 5 hours
-      breakout: [120, 300]          # 2 hours to 5 hours
-      ranging: [30, 180]            # 30 min to 3 hours
+      news_reactionary: [5, 60]    # 5 min to 1 hour
+      reversal: [15, 120]          # 15 min to 2 hours
+      breakout: [30, 180]          # 30 min to 3 hours
+      ranging: [10, 90]            # 10 min to 1.5 hours
 
 # Multi-Timeframe Analysis Settings
 multi_timeframe:
@@ -27,9 +27,9 @@ multi_timeframe:
     - M5
     - M15
   weights:
-    M1: 0.1    # 10% weight - noise filtering
-    M5: 0.3    # 30% weight - short-term signals
-    M15: 0.4   # 40% weight - medium-term trends
+    M1: 0.4    # 40% weight - immediate signals
+    M5: 0.4    # 40% weight - short-term signals
+    M15: 0.2   # 20% weight - trend confirmation
   minimum_timeframes: 2
   consensus_threshold: 0.6
 
@@ -42,24 +42,24 @@ market_conditions:
 
 # Risk Management
 risk_management:
-  max_daily_loss: 5.0
-  max_position_size: 10.0
+  max_daily_loss: 10.0
+  max_position_size: 100000.0
   correlation_limit: 0.7
-  max_open_trades: 3
-  stop_loss_atr_multiplier: 2.0
+  max_open_trades: 5
+  stop_loss_atr_multiplier: 1.5
   trailing_stop: true
-  trailing_stop_atr_multiplier: 1.5
+  trailing_stop_atr_multiplier: 1.0
 
 # AI Analysis
 ai_analysis:
   model: gpt-4
   max_tokens: 1000
   temperature: 0.3
-  analysis_frequency: 300  # 5 minutes
+  analysis_frequency: 60  # 1 minute
   confidence_threshold: 0.5  # Lowered from 0.7 to generate more recommendations
   signal_strength_threshold: 0.03  # Lowered threshold for more trading opportunities (3% minimum)
   minimum_confidence: 0.6  # Lowered confidence requirement for more trades
-  risk_reward_ratio_minimum: 1.1  # Lowered to 1:1.1 risk/reward ratio for testing
+  risk_reward_ratio_minimum: 1.5  # Day trading needs better risk/reward
   include_news_sentiment: true
   include_technical_analysis: true
   include_market_context: true
@@ -78,14 +78,14 @@ notifications:
     enabled: true # Disabled to reduce notification spam
     send_on_error: true
     include_performance: true
-  notification_cooldown: 300  # 5 minutes
+  notification_cooldown: 60  # 1 minute
   manual_trade_approval: true
   pre_trade_cooldown_seconds: 0
 
 # Data Collection
 data_collection:
   historical_days: 30
-  update_frequency: 300  # 5 minutes
+  update_frequency: 60  # 1 minute
   store_raw_data: true
   compression: true
   backup_frequency: 24

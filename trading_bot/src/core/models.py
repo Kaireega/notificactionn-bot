@@ -146,6 +146,7 @@ class TradeDecision:
     modified_stop_loss: Optional[Decimal] = None
     modified_take_profit: Optional[Decimal] = None
     risk_management_notes: str = ""
+    trade_id: Optional[str] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 

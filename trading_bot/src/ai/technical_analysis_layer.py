@@ -26,7 +26,7 @@ class TechnicalAnalysisLayer:
         self.logger = get_logger(__name__)
         
         # Initialize technical analyzer
-        self.technical_analyzer = TechnicalAnalyzer()
+        self.technical_analyzer = TechnicalAnalyzer(config)
         self.technical_analyzer.logger = self.logger
         
         # Initialize multi-timeframe analyzer

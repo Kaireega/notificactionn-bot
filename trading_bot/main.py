@@ -10,7 +10,7 @@ import sys
 import traceback
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Add the project root to the path for imports
 root_dir = Path(__file__).parent.parent
@@ -22,7 +22,7 @@ from trading_bot.src.data.data_layer import DataLayer
 from trading_bot.src.ai.technical_analysis_layer import TechnicalAnalysisLayer
 from trading_bot.src.decision.automated_decision_layer import AutomatedDecisionLayer
 from trading_bot.src.notifications.notification_layer import NotificationLayer
-from trading_bot.src.core.position_manager import PositionManager
+from trading_bot.src.core.position_manager_improved import ImprovedPositionManager as PositionManager
 from trading_bot.src.core.fundamental_analyzer import FundamentalAnalyzer
 from trading_bot.src.core.advanced_risk_manager import AdvancedRiskManager
 from trading_bot.src.core.market_regime_detector import MarketRegimeDetector
@@ -153,10 +153,10 @@ class TradingBot:
             self.logger.info("All components initialized successfully")
             print("✅ [DEBUG] All components initialized successfully")
             
-            # Send startup notification
-            print("🚀 [DEBUG] Sending startup notification...")
-            await self._send_startup_message()
-            print("✅ [DEBUG] Startup notification sent")
+            # Send startup notification (disabled)
+            print("🚀 [DEBUG] Startup notification disabled")
+            # await self._send_startup_message()
+            print("✅ [DEBUG] Startup notification disabled")
             
             # Start main trading loop
             print("🚀 [DEBUG] Starting main trading loop...")
@@ -257,6 +257,16 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     'errors': [],
                     'pair_analyses': {}
                 }
+                
+                # Sync risk manager with actual open positions before processing
+                try:
+                    position_summary = await self.position_manager.get_position_summary()
+                    actual_open_positions = position_summary.get('open_positions', {})
+                    # The risk manager is accessed through the decision layer
+                    if hasattr(self.decision_layer, 'risk_manager'):
+                        self.decision_layer.risk_manager.sync_open_positions(actual_open_positions)
+                except Exception as e:
+                    self.logger.error(f"Error syncing open positions: {e}")
                 
                 # Process each pair
                 for pair in all_data.keys():
@@ -458,9 +468,16 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                                         }
                                         
                                         if decision.approved:
-                                            loop_stats['trades_executed'] += 1
-                                            pair_analysis['trade_executed'] = True
-                                            pair_analysis['trade_id'] = 'automated_execution'
+                                            # Check if trade was actually executed (not just approved)
+                                            trade_id = decision.trade_id if hasattr(decision, 'trade_id') else None
+                                            if trade_id and not trade_id.startswith('FAILED-') and not trade_id.startswith('ERROR-'):
+                                                loop_stats['trades_executed'] += 1
+                                                pair_analysis['trade_executed'] = True
+                                                pair_analysis['trade_id'] = trade_id
+                                            else:
+                                                loop_stats['trades_rejected'] += 1
+                                                pair_analysis['trade_executed'] = False
+                                                pair_analysis['trade_id'] = trade_id or 'execution_failed'
                                         else:
                                             loop_stats['trades_rejected'] += 1
                                             pair_analysis['trade_executed'] = False
@@ -485,8 +502,8 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     print("🛑 [DEBUG] Shutdown signal detected, skipping loop report...")
                     break
                     
-                # Generate and send enhanced loop report
-                await self._send_enhanced_loop_report(loop_stats)
+                # Generate and send enhanced loop report (disabled)
+                # await self._send_enhanced_loop_report(loop_stats)
                 
                 # Wait for next loop
                 await asyncio.sleep(self.config.data_update_frequency)

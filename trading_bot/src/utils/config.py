@@ -15,7 +15,8 @@ from ..core.models import TimeFrame, MarketCondition
 @dataclass
 class TradingConfig:
     """Trading configuration settings."""
-    risk_percentage: float = 2.0
+    account_balance: float = 100000.0  # Account balance for position sizing
+    risk_percentage: float = 5.0  # Increased from 2.0 to 5% for larger account
     max_trades_per_day: int = 10
     default_timeframe: TimeFrame = TimeFrame.M5
     pairs: List[str] = None
@@ -37,8 +38,8 @@ class MarketConditionsConfig:
 @dataclass
 class RiskManagementConfig:
     """Risk management settings."""
-    max_daily_loss: float = 5.0
-    max_position_size: float = 10.0
+    max_daily_loss: float = 10.0  # Increased from 5.0 to 10% for larger account
+    max_position_size: float = 100000.0  # Increased from 10.0 to 100,000 units
     correlation_limit: float = 0.7
     max_open_trades: int = 3
     stop_loss_atr_multiplier: float = 2.0
@@ -52,11 +53,11 @@ class RiskManagementConfig:
 class NotificationConfig:
     """Notification settings."""
     telegram_enabled: bool = True
-    send_charts: bool = True
-    send_analysis: bool = True
+    send_charts: bool = False  # Disabled - only trade notifications
+    send_analysis: bool = False  # Disabled - only trade notifications
     email_enabled: bool = True
-    daily_summary: bool = True
-    trade_alerts: bool = True
+    daily_summary: bool = False  # Disabled - only trade notifications
+    trade_alerts: bool = True  # Keep trade notifications
     notification_cooldown: int = 300  # seconds
     manual_trade_approval: bool = True
     pre_trade_cooldown_seconds: int = 0
@@ -151,9 +152,18 @@ class Config:
         
         # Validate configuration
         self._validate_config()
+        
         # Safety defaults for production readiness
         self.enable_db = False
         self.enable_news = False
+        
+        # Enable live trading for real execution
+        self.notifications.live_trade_enabled = True
+        self.notifications.auto_execute = True
+        self.notifications.manual_trade_approval = False
+        print("🚀 [DEBUG] LIVE TRADING ENABLED - Real trades will be executed!")
+        print("🚀 [DEBUG] AUTO EXECUTION ENABLED - Trades will be executed automatically!")
+        print("🚀 [DEBUG] MANUAL APPROVAL DISABLED - Fully automated trading!")
     
     def _load_yaml_config(self, config_path: str = None) -> None:
         """Load configuration from YAML file."""
@@ -196,6 +206,7 @@ class Config:
                 rm = self._yaml_config['risk_management']
                 self.risk_management.max_daily_loss = rm.get('max_daily_loss', 5.0)
                 self.risk_management.max_position_size = rm.get('max_position_size', 10.0)
+                print(f"🔧 [DEBUG] Loading max_position_size from YAML: {rm.get('max_position_size', 10.0)}")
                 self.risk_management.correlation_limit = rm.get('correlation_limit', 0.7)
                 self.risk_management.max_open_trades = rm.get('max_open_trades', 3)
                 self.risk_management.stop_loss_atr_multiplier = rm.get('stop_loss_atr_multiplier', 2.0)

@@ -19,7 +19,7 @@ from email.mime.image import MIMEImage
 from ..core.models import TradeDecision, NotificationMessage, UserResponse
 from ..utils.config import Config
 from ..utils.logger import get_logger
-from .chart_generator import ChartGenerator
+# from .chart_generator import ChartGenerator
 from .callback_handler import CallbackHandler
 
 
@@ -32,10 +32,10 @@ class NotificationLayer:
         
         # Initialize notification channels
         self._init_telegram()
-        self._init_email()
+        # self._init_email()  # Email disabled
         
-        # Initialize chart generator
-        self.chart_generator = ChartGenerator()
+        # Initialize chart generator (disabled)
+        # self.chart_generator = ChartGenerator()
         
         # Initialize callback handler
         self.callback_handler = CallbackHandler(config, self)
@@ -68,27 +68,10 @@ class NotificationLayer:
     
     def _init_email(self) -> None:
         """Initialize email configuration."""
-        try:
-            print(f"📧 [DEBUG] Email enabled: {self.config.email_enabled}")
-            print(f"📧 [DEBUG] SMTP server: {self.config.smtp_server}")
-            print(f"📧 [DEBUG] SMTP port: {self.config.smtp_port}")
-            print(f"📧 [DEBUG] Email username: {self.config.email_username}")
-            print(f"📧 [DEBUG] Email password: {'*' * len(self.config.email_password) if self.config.email_password else 'None'}")
-            
-            if self.config.email_enabled:
-                self.smtp_server = self.config.smtp_server
-                self.smtp_port = self.config.smtp_port
-                self.email_username = self.config.email_username
-                self.email_password = self.config.email_password
-                self.logger.info("Email configuration initialized")
-                print(f"✅ [DEBUG] Email configuration initialized successfully")
-            else:
-                self.smtp_server = None
-                print(f"❌ [DEBUG] Email is disabled in configuration")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize email configuration: {e}")
-            self.smtp_server = None
-            print(f"❌ [DEBUG] Failed to initialize email configuration: {e}")
+        # Email functionality disabled
+        self.smtp_server = None
+        self.logger.info("Email notifications disabled")
+        print(f"❌ [DEBUG] Email notifications disabled")
     
     async def send_trade_alert(self, trade_decision: TradeDecision, chart_data: Optional[Dict] = None, custom_message: Optional[str] = None) -> bool:
         """Send trade alert notification."""
@@ -115,9 +98,10 @@ class NotificationLayer:
                 telegram_success = await self._send_telegram_notification(notification)
                 success = success and telegram_success
             
-            if self.config.email_enabled and self.smtp_server:
-                email_success = await self._send_email_notification(notification)
-                success = success and email_success
+            # Email notifications disabled
+            # if self.config.email_enabled and self.smtp_server:
+            #     email_success = await self._send_email_notification(notification)
+            #     success = success and email_success
             
             # Track sent notification
             if success:
@@ -182,27 +166,13 @@ class NotificationLayer:
         rr_str = f"{rec.risk_reward_ratio:.2f}" if rec.risk_reward_ratio is not None else "N/A"
         
         message = f"""
-🎯 {rec.signal.value.upper()} Signal Detected
+🎯 {rec.signal.value.upper()} {rec.pair}
+💰 Entry: {entry_str}
+🛑 Stop: {sl_str}
+🎯 Target: {tp_str}
+📈 Size: {trade_decision.position_size:.0f} units
 
-📊 Pair: {rec.pair}
-💰 Entry Price: {entry_str}
-🛑 Stop Loss: {sl_str}
-🎯 Take Profit: {tp_str}
-
-📈 Confidence: {conf_str}
-⚖️ Risk/Reward: {rr_str}
-⏱️ Hold Time: {rec.estimated_hold_time}
-🌍 Market Condition: {rec.market_condition.value.replace('_', ' ').title()}
-
-💡 AI Reasoning:
-{rec.reasoning}
-
-🔒 Risk Management:
-• Position Size: {trade_decision.position_size if trade_decision.position_size else 'N/A'}
-• Risk Amount: {trade_decision.risk_amount if trade_decision.risk_amount else 'N/A'}
-• Notes: {trade_decision.risk_management_notes}
-
-⏰ Timestamp: {rec.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ {rec.timestamp.strftime('%H:%M:%S')}
 """
         
         return message.strip()
@@ -224,15 +194,15 @@ class NotificationLayer:
                 reply_markup=keyboard
             )
             
-            # Send chart if available
-            if notification.chart_data and self.config.send_charts:
-                chart_image = self.chart_generator.generate_chart(notification.chart_data)
-                if chart_image:
-                    await self.telegram_bot.send_photo(
-                        chat_id=self.config.telegram_chat_id,
-                        photo=chart_image,
-                        caption=f"📊 Chart for {notification.trade_decision.recommendation.pair}"
-                    )
+            # Send chart if available (disabled)
+            # if notification.chart_data and self.config.send_charts:
+            #     chart_image = self.chart_generator.generate_chart(notification.chart_data)
+            #     if chart_image:
+            #         await self.telegram_bot.send_photo(
+            #             chat_id=self.config.telegram_chat_id,
+            #             photo=chart_image,
+            #             caption=f"📊 Chart for {notification.trade_decision.recommendation.pair}"
+            #         )
             
             self.logger.info(f"Telegram notification sent for {notification.trade_decision.recommendation.pair}")
             return True
@@ -260,14 +230,14 @@ class NotificationLayer:
             text_part = MIMEText(notification.message, 'plain')
             msg.attach(text_part)
             
-            # Attach chart if available
-            if notification.chart_data and self.config.send_charts:
-                chart_image = self.chart_generator.generate_chart(notification.chart_data)
-                if chart_image:
-                    image_part = MIMEImage(chart_image)
-                    image_part.add_header('Content-ID', '<chart>')
-                    image_part.add_header('Content-Disposition', 'inline', filename='chart.png')
-                    msg.attach(image_part)
+            # Attach chart if available (disabled)
+            # if notification.chart_data and self.config.send_charts:
+            #     chart_image = self.chart_generator.generate_chart(notification.chart_data)
+            #     if chart_image:
+            #         image_part = MIMEImage(chart_image)
+            #         image_part.add_header('Content-ID', '<chart>')
+            #         image_part.add_header('Content-Disposition', 'inline', filename='chart.png')
+            #         msg.attach(image_part)
             
             # Send email
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
@@ -383,8 +353,9 @@ class NotificationLayer:
                     parse_mode='Markdown'
                 )
             
-            if self.config.email_enabled and self.smtp_server:
-                await self._send_email_notification(notification)
+            # Email notifications disabled
+            # if self.config.email_enabled and self.smtp_server:
+            #     await self._send_email_notification(notification)
             
             return success
             
@@ -451,8 +422,9 @@ Please check the system logs for more details.
                     parse_mode='Markdown'
                 )
             
-            if self.config.email_enabled and self.smtp_server:
-                await self._send_email_notification(notification)
+            # Email notifications disabled
+            # if self.config.email_enabled and self.smtp_server:
+            #     await self._send_email_notification(notification)
             
             return success
             

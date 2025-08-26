@@ -27,9 +27,25 @@ from technicals.patterns import apply_candle_props, set_candle_patterns
 class TechnicalAnalyzer:
     """Enhanced technical analyzer using existing technical indicators."""
     
-    def __init__(self):
+    def __init__(self, config):
         """Initialize the technical analyzer."""
+        self.config = config
         self.logger = None  # Will be set by parent class
+        
+        # Initialize technical analysis parameters from config
+        try:
+            self.rsi_period = getattr(config.technical_analysis, 'rsi_period', 14)
+            self.macd_fast = getattr(config.technical_analysis, 'macd_fast', 12)
+            self.macd_slow = getattr(config.technical_analysis, 'macd_slow', 26)
+            self.macd_signal = getattr(config.technical_analysis, 'macd_signal', 9)
+            self.atr_period = getattr(config.technical_analysis, 'atr_period', 14)
+        except AttributeError:
+            # Fallback to default values if config structure is different
+            self.rsi_period = 14
+            self.macd_fast = 12
+            self.macd_slow = 26
+            self.macd_signal = 9
+            self.atr_period = 14
     
     def calculate_indicators(self, candles: List[CandleData]) -> TechnicalIndicators:
         """Calculate technical indicators using existing technicals/indicators.py functions."""

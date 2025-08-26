@@ -234,6 +234,10 @@ class PositionManager:
     async def _check_scaling_opportunities(self) -> None:
         """Check for position scaling opportunities."""
         for pair, position in self.active_positions.items():
+            # Initialize scaling_levels if it doesn't exist
+            if 'scaling_levels' not in position:
+                position['scaling_levels'] = []
+            
             if len(position['scaling_levels']) >= 3:  # Max 3 scaling levels
                 continue
             
@@ -247,7 +251,7 @@ class PositionManager:
             
             # Calculate 1R move
             risk = abs(float(entry_price - stop_loss))
-            if position['signal'] == 'buy':
+            if position['side'] == 'buy':
                 target_price = entry_price + Decimal(str(risk))
                 if current_price >= target_price:
                     await self._scale_into_position(pair, position, 'long')
@@ -288,6 +292,10 @@ class PositionManager:
     async def _check_partial_exits(self) -> None:
         """Check for partial profit taking opportunities."""
         for pair, position in self.active_positions.items():
+            # Initialize partial_exits if it doesn't exist
+            if 'partial_exits' not in position:
+                position['partial_exits'] = []
+            
             if len(position['partial_exits']) >= 3:  # Max 3 partial exits
                 continue
             
@@ -306,7 +314,7 @@ class PositionManager:
                 if target in [exit['target'] for exit in position['partial_exits']]:
                     continue
                 
-                if position['signal'] == 'buy':
+                if position['side'] == 'buy':
                     target_price = entry_price + Decimal(str(risk * target))
                     if current_price >= target_price:
                         await self._partial_exit(pair, position, target)
@@ -405,4 +413,174 @@ class PositionManager:
             except Exception as e:
                 self.logger.error(f"Error closing position {pair}: {e}")
         
-        self.active_positions.clear() 
+        self.active_positions.clear()
+    
+    async def _get_existing_position(self, pair: str) -> Optional[Dict[str, Any]]:
+        """Get existing position for a pair."""
+        try:
+            # Check our local tracking first
+            if pair in self.active_positions:
+                return self.active_positions[pair]
+            
+            # Check OANDA API for open trades
+            open_trades = self.oanda_api.get_open_trades()
+            pair_trades = [t for t in open_trades if t.instrument == pair]
+            
+            if pair_trades:
+                trade = pair_trades[0]  # Take the first trade for this pair
+                position_data = {
+                    'id': trade.id,
+                    'pair': pair,
+                    'side': trade.side,
+                    'units': trade.units,
+                    'entry_price': Decimal(str(trade.price)),
+                    'stop_loss': Decimal(str(trade.stop_loss)) if trade.stop_loss else None,
+                    'take_profit': Decimal(str(trade.take_profit)) if trade.take_profit else None,
+                    'entry_time': trade.time,
+                    'unrealized_pl': float(trade.unrealized_pl) if trade.unrealized_pl else 0.0
+                }
+                
+                # Add to our tracking
+                self.active_positions[pair] = position_data
+                return position_data
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error getting existing position for {pair}: {e}")
+            return None
+    
+    async def _should_close_position(self, existing_position: Dict[str, Any], decision: TradeDecision, market_context: MarketContext) -> bool:
+        """Determine if we should close an existing position."""
+        try:
+            # Close if signal direction is opposite
+            existing_side = existing_position.get('side', 'buy')
+            new_signal = decision.recommendation.signal.value
+            
+            if (existing_side == 'buy' and new_signal == 'sell') or (existing_side == 'sell' and new_signal == 'buy'):
+                return True
+            
+            # Close if position is in significant loss (more than 2R)
+            unrealized_pl = existing_position.get('unrealized_pl', 0)
+            if unrealized_pl < -200:  # $200 loss threshold
+                return True
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Error checking if should close position: {e}")
+            return False
+    
+    async def _close_position(self, position: Dict[str, Any]) -> bool:
+        """Close an existing position."""
+        try:
+            trade_id = position['id']
+            success = self.oanda_api.close_trade(trade_id)
+            
+            if success:
+                # Remove from our tracking
+                pair = position['pair']
+                if pair in self.active_positions:
+                    del self.active_positions[pair]
+                
+                self.logger.info(f"✅ Position closed successfully: {pair}")
+                return True
+            else:
+                self.logger.error(f"❌ Failed to close position: {position['pair']}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error closing position: {e}")
+            return False
+    
+    async def _calculate_position_size(self, decision: TradeDecision, market_context: MarketContext) -> Dict[str, Any]:
+        """Calculate position size based on risk management rules."""
+        try:
+            # Use the position size from the decision
+            position_size = decision.position_size
+            stop_loss = decision.modified_stop_loss
+            take_profit = decision.modified_take_profit
+            
+            return {
+                'size': position_size,
+                'stop_loss': stop_loss,
+                'take_profit': take_profit
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating position size: {e}")
+            return {
+                'size': 1000,  # Default size
+                'stop_loss': None,
+                'take_profit': None
+            }
+    
+    async def _execute_trade_order(self, decision: TradeDecision, position_size: Dict[str, Any]) -> Optional[str]:
+        """Execute the actual trade order."""
+        try:
+            pair = decision.recommendation.pair
+            side = decision.recommendation.signal.value
+            units = int(position_size['size'])
+            
+            # Create order data
+            order_data = {
+                'instrument': pair,
+                'units': str(units),
+                'side': side,
+                'type': 'MARKET',
+                'timeInForce': 'FOK'
+            }
+            
+            # Add stop loss if provided
+            if position_size.get('stop_loss'):
+                order_data['stopLossOnFill'] = {
+                    'price': str(position_size['stop_loss']),
+                    'timeInForce': 'GTC'
+                }
+            
+            # Add take profit if provided
+            if position_size.get('take_profit'):
+                order_data['takeProfitOnFill'] = {
+                    'price': str(position_size['take_profit']),
+                    'timeInForce': 'GTC'
+                }
+            
+            # Execute order
+            response = self.oanda_api.create_order(order_data)
+            
+            if response and response.get('orderFillTransaction'):
+                trade_id = response['orderFillTransaction'].get('id')
+                self.logger.info(f"✅ Trade order executed: {trade_id}")
+                return trade_id
+            else:
+                self.logger.error(f"❌ Trade order failed: {response}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error executing trade order: {e}")
+            return None
+    
+    async def _record_trade(self, decision: TradeDecision, trade_id: str, position_size: Dict[str, Any]) -> None:
+        """Record trade in our tracking system."""
+        try:
+            position_data = {
+                'id': trade_id,
+                'pair': decision.recommendation.pair,
+                'side': decision.recommendation.signal.value,
+                'units': position_size['size'],
+                'entry_price': decision.recommendation.entry_price,
+                'stop_loss': position_size.get('stop_loss'),
+                'take_profit': position_size.get('take_profit'),
+                'entry_time': datetime.now(timezone.utc),
+                'unrealized_pl': 0.0,
+                'scaling_levels': [],  # Initialize scaling levels
+                'partial_exits': []    # Initialize partial exits
+            }
+            
+            self.active_positions[decision.recommendation.pair] = position_data
+            self.daily_trades += 1
+            
+            self.logger.info(f"📝 Trade recorded: {decision.recommendation.pair}")
+            
+        except Exception as e:
+            self.logger.error(f"Error recording trade: {e}") 

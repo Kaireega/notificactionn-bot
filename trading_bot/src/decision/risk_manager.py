@@ -100,7 +100,7 @@ class RiskManager:
         """Check basic risk management rules."""
         
         # Check confidence threshold - Made more aggressive
-        confidence_threshold = min(self.config.ai_analysis.confidence_threshold, 0.2)  # Even more lenient for testing
+        confidence_threshold = min(self.config.ai_confidence_threshold, 0.2)  # Even more lenient for testing
         if recommendation.confidence < confidence_threshold:
             return {
                 'approved': False,
@@ -207,7 +207,7 @@ class RiskManager:
                 }
 
             # Account balance and risk percent
-            account_balance = Decimal(str(getattr(self.config, 'account_balance', 10000)))
+            account_balance = Decimal(str(getattr(self.config.trading, 'account_balance', 100000)))
             risk_percentage = Decimal(str(self.config.trading.risk_percentage))
             risk_amount = account_balance * (risk_percentage / 100)
 

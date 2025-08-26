@@ -92,30 +92,38 @@ class ChartGenerator:
         """Create a chart with technical indicators."""
         
         try:
-            # Prepare data
+            # Prepare data for candlestick chart
             dates = [c.timestamp for c in candles]
+            opens = [float(c.open) for c in candles]
+            highs = [float(c.high) for c in candles]
+            lows = [float(c.low) for c in candles]
             closes = [float(c.close) for c in candles]
             
-            # Create figure with secondary y-axis
+            # Create figure
             fig = go.Figure()
             
-            # Add price line
-            fig.add_trace(go.Scatter(
+            # Add candlestick chart
+            fig.add_trace(go.Candlestick(
                 x=dates,
-                y=closes,
-                mode='lines',
+                open=opens,
+                high=highs,
+                low=lows,
+                close=closes,
                 name='Price',
-                line=dict(color='blue')
+                increasing_line_color='#24A06B',
+                decreasing_line_color='#CC2E3C',
+                increasing_fillcolor='#24A06B',
+                decreasing_fillcolor='#CC2E3C'
             ))
             
-            # Add technical indicators
+            # Add technical indicators (simplified for now - just show current levels)
             if 'ema_fast' in indicators and indicators['ema_fast']:
                 fig.add_trace(go.Scatter(
                     x=dates,
                     y=[indicators['ema_fast']] * len(dates),
                     mode='lines',
                     name='EMA Fast',
-                    line=dict(color='orange', dash='dash')
+                    line=dict(color='orange', dash='dash', width=1)
                 ))
             
             if 'ema_slow' in indicators and indicators['ema_slow']:
@@ -124,7 +132,7 @@ class ChartGenerator:
                     y=[indicators['ema_slow']] * len(dates),
                     mode='lines',
                     name='EMA Slow',
-                    line=dict(color='red', dash='dash')
+                    line=dict(color='red', dash='dash', width=1)
                 ))
             
             if 'bollinger_upper' in indicators and indicators['bollinger_upper']:
@@ -133,7 +141,7 @@ class ChartGenerator:
                     y=[indicators['bollinger_upper']] * len(dates),
                     mode='lines',
                     name='BB Upper',
-                    line=dict(color='gray', dash='dot')
+                    line=dict(color='gray', dash='dot', width=1)
                 ))
             
             if 'bollinger_lower' in indicators and indicators['bollinger_lower']:
@@ -142,7 +150,7 @@ class ChartGenerator:
                     y=[indicators['bollinger_lower']] * len(dates),
                     mode='lines',
                     name='BB Lower',
-                    line=dict(color='gray', dash='dot')
+                    line=dict(color='gray', dash='dot', width=1)
                 ))
             
             # Add trade recommendation if provided

@@ -437,7 +437,7 @@ class AdvancedRiskManager:
         final_size = time_adjusted * fundamental_multiplier
         
         # Apply account size limits
-        account_size = 10000  # This should come from config or API
+        account_size = self.config.trading.account_balance  # Get from config
         max_position_value = account_size * 0.1  # Max 10% of account per trade
         
         # Convert to position size (simplified)
