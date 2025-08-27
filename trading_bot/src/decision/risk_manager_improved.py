@@ -49,13 +49,24 @@ class ImprovedRiskManager:
             'correlation_data': {}
         }
         
-        # Enhanced confidence thresholds
+        # Enhanced confidence thresholds - Stricter requirements
         self.confidence_thresholds = {
-            'minimum': 0.3,      # Minimum confidence for any trade
-            'low': 0.4,          # Low confidence trades
-            'medium': 0.6,       # Medium confidence trades
-            'high': 0.8,         # High confidence trades
+            'minimum': 0.7,      # Increased minimum confidence for any trade
+            'low': 0.75,         # Low confidence trades
+            'medium': 0.8,       # Medium confidence trades
+            'high': 0.85,        # High confidence trades
             'excellent': 0.9     # Excellent confidence trades
+        }
+        
+        # Enhanced entry criteria thresholds
+        self.entry_criteria = {
+            'minimum_signal_strength': 0.6,
+            'minimum_consensus_score': 0.8,
+            'minimum_risk_reward': 2.0,
+            'minimum_rsi_divergence': 0.3,
+            'minimum_macd_signal': 0.0002,
+            'bollinger_threshold': 0.05,
+            'volume_spike_threshold': 1.5
         }
         
         # Market condition risk scores
@@ -222,18 +233,30 @@ class ImprovedRiskManager:
                 'confidence_score': confidence_score
             }
         
-        # Enhanced risk-reward ratio check
-        if recommendation.risk_reward_ratio < 1.5:  # Increased from 1.0 for better quality
+        # Enhanced risk-reward ratio check - Stricter requirement
+        if recommendation.risk_reward_ratio < self.entry_criteria['minimum_risk_reward']:
             return {
                 'approved': False,
-                'reason': f'Risk-reward ratio {recommendation.risk_reward_ratio:.2f} below minimum 1.5',
+                'reason': f'Risk-reward ratio {recommendation.risk_reward_ratio:.2f} below minimum {self.entry_criteria["minimum_risk_reward"]}',
                 'score': 0.3,
                 'confidence_score': confidence_score
             }
         
-        # Calculate overall basic score
-        rr_score = min(recommendation.risk_reward_ratio / 3.0, 1.0)  # Normalize to 0-1
-        basic_score = (confidence_score * 0.6) + (rr_score * 0.4)
+        # Enhanced signal strength check
+        if hasattr(recommendation, 'signal_strength') and recommendation.signal_strength < self.entry_criteria['minimum_signal_strength']:
+            return {
+                'approved': False,
+                'reason': f'Signal strength {recommendation.signal_strength:.2f} below minimum {self.entry_criteria["minimum_signal_strength"]}',
+                'score': 0.4,
+                'confidence_score': confidence_score
+            }
+        
+        # Calculate overall basic score with enhanced weighting
+        rr_score = min(recommendation.risk_reward_ratio / 4.0, 1.0)  # Normalize to 0-1 with higher target
+        signal_score = getattr(recommendation, 'signal_strength', 0.5) / self.entry_criteria['minimum_signal_strength']
+        signal_score = min(signal_score, 1.0)
+        
+        basic_score = (confidence_score * 0.5) + (rr_score * 0.3) + (signal_score * 0.2)
         
         return {
             'approved': True, 
@@ -248,42 +271,72 @@ class ImprovedRiskManager:
         condition = recommendation.market_condition
         base_score = self.market_condition_risk_scores.get(condition, 0.5)
         
-        # Enhanced market condition checks
+        # Enhanced market condition checks with stricter requirements
         if condition == MarketCondition.NEWS_REACTIONARY:
-            # Higher risk in news-driven markets
-            if recommendation.confidence < self.confidence_thresholds['high']:
+            # Higher risk in news-driven markets - require 80% confidence
+            if recommendation.confidence < 0.8:
                 return {
                     'approved': False,
-                    'reason': f'News reactionary markets require higher confidence ({self.confidence_thresholds["high"]})',
+                    'reason': f'News reactionary markets require 80%+ confidence (current: {recommendation.confidence:.2f})',
                     'score': 0.2
                 }
-        
-        elif condition == MarketCondition.REVERSAL:
-            # Reversal trades need strong confirmation
-            if recommendation.confidence < self.confidence_thresholds['medium']:
+            # Require higher risk/reward for news trades
+            if recommendation.risk_reward_ratio < 2.5:
                 return {
                     'approved': False,
-                    'reason': f'Reversal trades require higher confidence ({self.confidence_thresholds["medium"]})',
+                    'reason': f'News trades require R/R ratio >= 2.5 (current: {recommendation.risk_reward_ratio:.2f})',
                     'score': 0.3
                 }
         
-        elif condition == MarketCondition.BREAKOUT:
-            # Breakout trades need volume confirmation
-            if hasattr(market_context, 'volume') and market_context.volume < 1.5:
+        elif condition == MarketCondition.REVERSAL:
+            # Reversal trades need strong confirmation - require 75% confidence
+            if recommendation.confidence < 0.75:
                 return {
                     'approved': False,
-                    'reason': 'Breakout trades need higher volume confirmation',
+                    'reason': f'Reversal trades require 75%+ confidence (current: {recommendation.confidence:.2f})',
+                    'score': 0.3
+                }
+            # Require higher risk/reward for reversal trades
+            if recommendation.risk_reward_ratio < 2.0:
+                return {
+                    'approved': False,
+                    'reason': f'Reversal trades require R/R ratio >= 2.0 (current: {recommendation.risk_reward_ratio:.2f})',
                     'score': 0.4
                 }
         
-        elif condition == MarketCondition.RANGING:
-            # Ranging markets need tight stops
-            if recommendation.risk_reward_ratio > 3.0:
+        elif condition == MarketCondition.BREAKOUT:
+            # Breakout trades need good confirmation - require 70% confidence
+            if recommendation.confidence < 0.7:
                 return {
                     'approved': False,
-                    'reason': 'Ranging markets need tighter risk/reward ratios',
+                    'reason': f'Breakout trades require 70%+ confidence (current: {recommendation.confidence:.2f})',
+                    'score': 0.4
+                }
+            # Require volume confirmation for breakouts
+            if hasattr(recommendation, 'volume_confirmed') and not recommendation.volume_confirmed:
+                return {
+                    'approved': False,
+                    'reason': 'Breakout trades require volume confirmation',
                     'score': 0.5
                 }
+        
+        elif condition == MarketCondition.RANGING:
+            # Ranging trades need high confidence - require 80% confidence
+            if recommendation.confidence < 0.8:
+                return {
+                    'approved': False,
+                    'reason': f'Ranging trades require 80%+ confidence (current: {recommendation.confidence:.2f})',
+                    'score': 0.3
+                }
+            # Lower risk/reward acceptable for ranging trades
+            if recommendation.risk_reward_ratio > 1.5:
+                return {
+                    'approved': False,
+                    'reason': f'Ranging trades should have R/R ratio <= 1.5 (current: {recommendation.risk_reward_ratio:.2f})',
+                    'score': 0.4
+                }
+        
+
         
         return {
             'approved': True, 

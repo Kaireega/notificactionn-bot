@@ -1,0 +1,68 @@
+{
+  "performance_analysis": {
+    "overall_performance": {
+      "total_return": 0.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown": 0.0,
+      "avg_trade_duration": 0.0
+    },
+    "trade_analysis": {
+      "total_trades": 0,
+      "winning_trades": 0,
+      "losing_trades": 0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0,
+      "largest_win": 0.0,
+      "largest_loss": 0.0
+    },
+    "performance_by_pair": {},
+    "performance_by_signal_type": {},
+    "consecutive_analysis": {
+      "max_consecutive_wins": 0,
+      "max_consecutive_losses": 0
+    }
+  },
+  "risk_analysis": {
+    "drawdown_analysis": {
+      "max_drawdown": 0.0,
+      "drawdown_severity": "Low",
+      "recovery_factor": 0.0
+    },
+    "risk_metrics": {
+      "var_95": 0.0,
+      "var_99": 0.0,
+      "cvar_95": 0.0,
+      "cvar_99": 0.0
+    },
+    "consecutive_losses_risk": {
+      "max_consecutive_losses": 0,
+      "risk_level": "Low"
+    },
+    "risk_checks": {
+      "passed": 0,
+      "failed": 0,
+      "pass_rate": 0.0
+    }
+  },
+  "signal_analysis": {
+    "signal_generation": {
+      "total_signals": 0,
+      "signals_acted_upon": 0,
+      "signals_ignored": 0,
+      "signal_efficiency": 0.0
+    },
+    "signal_quality": {
+      "signal_to_trade_ratio": 0.0,
+      "avg_signals_per_day": 0.0
+    },
+    "performance_timing": {
+      "technical_analysis_time": 0,
+      "decision_making_time": 0,
+      "execution_time": 0,
+      "total_processing_time": 0
+    }
+  },
+  "timestamp": "2025-08-27T03:31:44.633236"
+}

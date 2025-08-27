@@ -19,7 +19,7 @@ from ..utils.config import Config
 from ..utils.logger import get_logger
 from ..ai.technical_analysis_layer import TechnicalAnalysisLayer
 from ..decision.technical_decision_layer import TechnicalDecisionLayer
-from ..core.advanced_risk_manager import AdvancedRiskManager
+from ..decision.risk_manager_improved import ImprovedRiskManager
 from .performance_metrics import PerformanceMetrics
 from .simulation_broker import SimulationBroker
 
@@ -61,13 +61,13 @@ class BacktestEngine:
         # Initialize components
         self.technical_layer = TechnicalAnalysisLayer(config)
         self.decision_layer = TechnicalDecisionLayer(config)
-        self.risk_manager = AdvancedRiskManager(config)
+        self.risk_manager = ImprovedRiskManager(config)
         self.broker = SimulationBroker(config)
         self.performance_metrics = PerformanceMetrics()
         
         # Backtest state
-        self.current_balance = config.backtesting.initial_balance
-        self.initial_balance = config.backtesting.initial_balance
+        self.current_balance = config.simulation.initial_balance
+        self.initial_balance = config.simulation.initial_balance
         self.equity_curve = []
         self.trade_history = []
         self.open_positions = {}
@@ -76,7 +76,7 @@ class BacktestEngine:
         self.total_trades = 0
         self.winning_trades = 0
         self.losing_trades = 0
-        self.total_pnl = 0.0
+        self.total_pnl = Decimal('0.0')
         
     async def run_backtest(
         self,
@@ -108,7 +108,7 @@ class BacktestEngine:
             await self._process_timestamp(timestamp, candles_by_pair)
             
             # Update equity curve
-            self.equity_curve.append(self.current_balance)
+            self.equity_curve.append(float(self.current_balance))
         
         # Close all remaining open positions at the end of backtest
         if self.open_positions:
@@ -132,7 +132,7 @@ class BacktestEngine:
     def _reset_backtest_state(self):
         """Reset backtest state for a new run."""
         self.current_balance = self.initial_balance
-        self.equity_curve = [self.initial_balance]
+        self.equity_curve = [float(self.initial_balance)]
         self.trade_history = []
         self.open_positions = {}
         self.total_trades = 0
@@ -198,303 +198,202 @@ class BacktestEngine:
         all_candles.sort(key=lambda x: x[0])
         
         # Group by timestamp
-        grouped_data = {}
+        grouped_candles = {}
         for timestamp, pair, timeframe, candle in all_candles:
-            if timestamp not in grouped_data:
-                grouped_data[timestamp] = {}
-            if pair not in grouped_data[timestamp]:
-                grouped_data[timestamp][pair] = {}
-            if timeframe not in grouped_data[timestamp][pair]:
-                grouped_data[timestamp][pair][timeframe] = []
-            grouped_data[timestamp][pair][timeframe].append(candle)
+            if timestamp not in grouped_candles:
+                grouped_candles[timestamp] = {}
+            if pair not in grouped_candles[timestamp]:
+                grouped_candles[timestamp][pair] = {}
+            if timeframe not in grouped_candles[timestamp][pair]:
+                grouped_candles[timestamp][pair][timeframe] = []
+            grouped_candles[timestamp][pair][timeframe].append(candle)
         
-        self.logger.info(f"Grouped data: {len(grouped_data)} unique timestamps")
-        return grouped_data
+        return grouped_candles
     
-    async def _process_timestamp(
-        self, 
-        timestamp: datetime, 
-        candles_by_pair: Dict[str, Dict[TimeFrame, List[CandleData]]]
-    ):
+    async def _process_timestamp(self, timestamp: datetime, candles_by_pair: Dict[str, Dict[TimeFrame, List[CandleData]]]):
         """Process all candles for a specific timestamp."""
         
-        # Update open positions (check for stop loss/take profit)
-        await self._update_positions(timestamp, candles_by_pair)
-        
-        # Update rolling windows with new candles
         for pair, timeframes in candles_by_pair.items():
-            if pair not in self.candle_windows:
-                self.candle_windows[pair] = {}
-            
-            for timeframe, candles in timeframes.items():
-                if timeframe not in self.candle_windows[pair]:
-                    self.candle_windows[pair][timeframe] = []
-                
-                # Add new candles to the window
-                self.candle_windows[pair][timeframe].extend(candles)
-                
-                # Keep only the last 100 candles to prevent memory issues
-                if len(self.candle_windows[pair][timeframe]) > 100:
-                    self.candle_windows[pair][timeframe] = self.candle_windows[pair][timeframe][-100:]
-        
-        # Analyze each pair
-        for pair, timeframes in candles_by_pair.items():
-            if pair not in self.config.trading_pairs:
+            # Skip if we already have an open position for this pair
+            if pair in self.open_positions:
                 continue
             
-            # Check if we can open new positions
+            # Skip if we've reached max open trades
             if len(self.open_positions) >= self.config.risk_management.max_open_trades:
                 continue
             
-            # Get market context
-            market_context = self._create_market_context(timeframes)
-            
-            # Use rolling windows for technical analysis
-            rolling_timeframes = {}
-            for timeframe in timeframes.keys():
-                if pair in self.candle_windows and timeframe in self.candle_windows[pair]:
-                    rolling_timeframes[timeframe] = self.candle_windows[pair][timeframe]
-            
-            # Run technical analysis with rolling windows
-            recommendation, indicators = await self.technical_layer.analyze_multiple_timeframes(
-                pair, rolling_timeframes, market_context
-            )
-            
-            if recommendation and indicators:
-                self.logger.info(f"📊 Generated recommendation for {pair}: {recommendation.signal}")
+            try:
+                # Get current price from M5 timeframe
+                m5_candles = timeframes.get(TimeFrame.M5, [])
+                if not m5_candles:
+                    continue
                 
-                # Get current price
-                current_price = self._get_current_price(timeframes.get(TimeFrame.M5, []))
+                current_price = self._get_current_price(m5_candles)
                 
-                # Make decision
+                # Create market context
+                market_context = self._create_market_context(timeframes)
+                
+                # Analyze technical indicators
+                technical_indicators = {}
+                for tf, candles in timeframes.items():
+                    if len(candles) >= 20:  # Minimum candles for indicators
+                        indicators = self.technical_layer.technical_analyzer.calculate_indicators(candles)
+                        technical_indicators[tf] = indicators
+                
+                if not technical_indicators:
+                    continue
+                
+                # Make trading decision
                 decision = await self.decision_layer.make_technical_decision(
-                    pair, {TimeFrame.M5: indicators}, market_context, current_price, timeframes
+                    pair, technical_indicators, market_context, current_price, timeframes
                 )
                 
                 if decision and decision.approved:
-                    self.logger.info(f"✅ Trade approved for {pair}: {decision.position_size}")
                     # Execute trade
-                    await self._execute_trade(decision, timestamp, current_price)
-                else:
-                    self.logger.info(f"❌ Trade rejected for {pair}")
-            else:
-                self.logger.info(f"📊 No recommendation generated for {pair}")
-    
-    async def _update_positions(self, timestamp: datetime, candles_by_pair: Dict[str, Dict[TimeFrame, List[CandleData]]]):
-        """Update open positions and check for exits."""
-        
-        positions_to_close = []
-        
-        for pair, position in self.open_positions.items():
-            if pair in candles_by_pair:
-                current_price = self._get_current_price(candles_by_pair[pair].get(TimeFrame.M5, []))
+                    await self._execute_trade(pair, decision, current_price, timestamp)
                 
-                # Check stop loss
-                if position['signal'] == TradeSignal.BUY and current_price <= position['stop_loss']:
-                    positions_to_close.append((pair, 'stop_loss', current_price))
-                elif position['signal'] == TradeSignal.SELL and current_price >= position['stop_loss']:
-                    positions_to_close.append((pair, 'stop_loss', current_price))
-                
-                # Check take profit
-                elif position['signal'] == TradeSignal.BUY and current_price >= position['take_profit']:
-                    positions_to_close.append((pair, 'take_profit', current_price))
-                elif position['signal'] == TradeSignal.SELL and current_price <= position['take_profit']:
-                    positions_to_close.append((pair, 'take_profit', current_price))
-        
-        # Close positions
-        for pair, exit_reason, exit_price in positions_to_close:
-            await self._close_position(pair, exit_reason, exit_price, timestamp)
-    
-    async def _execute_trade(self, decision: TradeDecision, timestamp: datetime, current_price: Decimal):
-        """Execute a trade through the simulation broker."""
-        
-        try:
-            self.logger.info(f"🚀 Executing trade: {decision.recommendation.pair} {decision.recommendation.signal.value}")
-            
-            # Use position size from decision
-            position_size = float(decision.position_size)
-            self.logger.info(f"📊 Position size: {position_size}")
-            
-            # Execute through broker
-            trade_id = await self.broker.execute_trade(
-                pair=decision.recommendation.pair,
-                signal=decision.recommendation.signal,
-                size=position_size,
-                entry_price=current_price,
-                stop_loss=decision.modified_stop_loss,
-                take_profit=decision.modified_take_profit,
-                timestamp=timestamp
-            )
-            
-            self.logger.info(f"✅ Trade executed with ID: {trade_id}")
-            
-            # Record position
-            self.open_positions[decision.recommendation.pair] = {
-                'trade_id': trade_id,
-                'signal': decision.recommendation.signal,
-                'size': position_size,
-                'entry_price': current_price,
-                'stop_loss': decision.modified_stop_loss,
-                'take_profit': decision.modified_take_profit,
-                'entry_time': timestamp
-            }
-            
-            self.logger.info(f"📈 Opened position: {decision.recommendation.pair} "
-                            f"{decision.recommendation.signal.value} at {current_price}")
-            
-        except Exception as e:
-            self.logger.error(f"❌ Error executing trade: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    async def _close_position(self, pair: str, exit_reason: str, exit_price: Decimal, timestamp: datetime):
-        """Close an open position."""
-        
-        if pair not in self.open_positions:
-            return
-        
-        position = self.open_positions[pair]
-        
-        try:
-            # Convert position size to Decimal for consistent calculations
-            position_size = Decimal(str(position['size']))
-            
-            # Calculate P&L
-            if position['signal'] == TradeSignal.BUY:
-                pnl = (exit_price - position['entry_price']) * position_size
-            else:
-                pnl = (position['entry_price'] - exit_price) * position_size
-            
-            # Apply broker fees
-            pnl -= Decimal(str(self.broker.calculate_fees(position['size'], position['entry_price'])))
-            pnl -= Decimal(str(self.broker.calculate_fees(position['size'], exit_price)))
-            
-            # Update balance - ensure both are Decimal types
-            self.current_balance = Decimal(str(self.current_balance)) + pnl
-            self.total_pnl = Decimal(str(self.total_pnl)) + pnl
-            
-            # Record trade
-            trade_record = {
-                'pair': pair,
-                'signal': position['signal'].value,
-                'entry_price': float(position['entry_price']),
-                'exit_price': float(exit_price),
-                'size': position['size'],
-                'pnl': pnl,
-                'entry_time': position['entry_time'],
-                'exit_time': timestamp,
-                'duration_minutes': (timestamp - position['entry_time']).total_seconds() / 60,
-                'exit_reason': exit_reason
-            }
-            
-            self.trade_history.append(trade_record)
-            
-            # Update statistics
-            self.total_trades += 1
-            if pnl > 0:
-                self.winning_trades += 1
-            else:
-                self.losing_trades += 1
-            
-            # Remove from open positions
-            del self.open_positions[pair]
-            
-            self.logger.debug(f"Closed position: {pair} {exit_reason} at {exit_price}, P&L: {pnl:.2f}")
-            
-        except Exception as e:
-            self.logger.error(f"Error closing position: {e}")
+            except Exception as e:
+                self.logger.error(f"Error processing {pair} at {timestamp}: {e}")
+                continue
     
     def _create_market_context(self, timeframes: Dict[TimeFrame, List[CandleData]]) -> MarketContext:
         """Create market context from timeframe data."""
-        
-        # Calculate basic market context
-        primary_candles = timeframes.get(TimeFrame.M5, [])
-        if not primary_candles:
-            primary_candles = list(timeframes.values())[0] if timeframes else []
-        
-        if len(primary_candles) < 2:
-            return MarketContext(
-                condition=MarketCondition.RANGING,
-                volatility=Decimal('0.001'),
-                trend_strength=Decimal('0.0'),
-                news_sentiment=Decimal('0.0')
-            )
-        
-        # Calculate volatility (ATR-like)
-        high_low_ranges = []
-        for i in range(1, min(len(primary_candles), 14)):
-            high_low_ranges.append(primary_candles[i].high - primary_candles[i].low)
-        
-        volatility = sum(high_low_ranges) / len(high_low_ranges) if high_low_ranges else Decimal('0.001')
-        
-        # Calculate trend strength
-        if len(primary_candles) >= 20:
-            recent_avg = sum(c.close for c in primary_candles[-10:]) / 10
-            older_avg = sum(c.close for c in primary_candles[-20:-10]) / 10
-            trend_strength = abs(recent_avg - older_avg) / older_avg
-        else:
-            trend_strength = Decimal('0.0')
-        
-        # Determine market condition
-        if trend_strength > Decimal('0.01'):
-            condition = MarketCondition.TRENDING
-        elif volatility > Decimal('0.002'):
-            condition = MarketCondition.NEWS_REACTIONARY
-        else:
-            condition = MarketCondition.RANGING
-        
+        # Simple market context - can be enhanced
         return MarketContext(
-            condition=condition,
-            volatility=volatility,
-            trend_strength=trend_strength,
-            news_sentiment=Decimal('0.0')
+            condition=MarketCondition.UNKNOWN,
+            volatility=0.002,
+            trend_strength=0.5
         )
     
     def _get_current_price(self, candles: List[CandleData]) -> Decimal:
         """Get current price from the latest candle."""
         if not candles:
             return Decimal('0')
-        
-        latest_candle = candles[-1]
-        return (latest_candle.high + latest_candle.low) / 2
+        return candles[-1].close
     
-    def _calculate_backtest_results(
-        self, 
-        start_date: datetime, 
-        end_date: datetime, 
-        parameters: Dict[str, Any]
-    ) -> BacktestResult:
+    async def _execute_trade(self, pair: str, decision: TradeDecision, current_price: Decimal, timestamp: datetime):
+        """Execute a trade based on the decision."""
+        try:
+            # Calculate position size
+            risk_amount = self.current_balance * (self.config.trading.risk_percentage / 100)
+            position_size = risk_amount / abs(float(current_price - decision.modified_stop_loss))
+            
+            # Execute through broker
+            trade_result = await self.broker.execute_trade(
+                pair=pair,
+                side=decision.recommendation.signal.value,
+                size=position_size,
+                price=current_price,
+                stop_loss=decision.modified_stop_loss,
+                take_profit=decision.modified_take_profit
+            )
+            
+            if trade_result['success']:
+                self.open_positions[pair] = {
+                    'decision': decision,
+                    'entry_price': current_price,
+                    'entry_time': timestamp,
+                    'position_size': position_size,
+                    'stop_loss': decision.modified_stop_loss,
+                    'take_profit': decision.modified_take_profit
+                }
+                
+                self.logger.info(f"Opened {decision.recommendation.signal.value} position for {pair} "
+                               f"at {current_price}, size: {position_size:.2f}")
+            
+        except Exception as e:
+            self.logger.error(f"Error executing trade for {pair}: {e}")
+    
+    async def _close_position(self, pair: str, reason: str, current_price: Decimal, timestamp: datetime):
+        """Close an open position."""
+        if pair not in self.open_positions:
+            return
+        
+        position = self.open_positions[pair]
+        entry_price = position['entry_price']
+        position_size = position['position_size']
+        
+        # Calculate P&L
+        if position['decision'].recommendation.signal == TradeSignal.BUY:
+            pnl = (current_price - entry_price) * position_size
+        else:
+            pnl = (entry_price - current_price) * position_size
+        
+        # Update balance
+        self.current_balance += pnl
+        self.total_pnl += pnl
+        
+        # Update trade statistics
+        self.total_trades += 1
+        if pnl > 0:
+            self.winning_trades += 1
+        else:
+            self.losing_trades += 1
+        
+        # Record trade
+        trade_record = {
+            'pair': pair,
+            'entry_time': position['entry_time'],
+            'exit_time': timestamp,
+            'entry_price': float(entry_price),
+            'exit_price': float(current_price),
+            'position_size': float(position_size),
+            'pnl': float(pnl),
+            'return_pct': float(pnl / (entry_price * position_size) * 100),
+            'reason': reason,
+            'signal': position['decision'].recommendation.signal.value
+        }
+        self.trade_history.append(trade_record)
+        
+        # Remove from open positions
+        del self.open_positions[pair]
+        
+        self.logger.info(f"Closed {pair} position: {pnl:.2f} P&L ({reason})")
+    
+    def _calculate_backtest_results(self, start_date: datetime, end_date: datetime, parameters: Dict[str, Any]) -> BacktestResult:
         """Calculate comprehensive backtest results."""
         
-        # Calculate basic metrics
-        win_rate = self.winning_trades / max(1, self.total_trades)
-        total_return = (self.current_balance - self.initial_balance) / self.initial_balance
+        # Basic metrics
+        total_return = float(self.current_balance - self.initial_balance) / float(self.initial_balance) * 100
+        win_rate = self.winning_trades / max(self.total_trades, 1) * 100
         
         # Calculate profit factor
-        winning_pnl = sum(t['pnl'] for t in self.trade_history if t['pnl'] > 0)
-        losing_pnl = abs(sum(t['pnl'] for t in self.trade_history if t['pnl'] < 0))
-        profit_factor = winning_pnl / max(1, losing_pnl)
+        total_wins = sum(t['pnl'] for t in self.trade_history if t['pnl'] > 0)
+        total_losses = abs(sum(t['pnl'] for t in self.trade_history if t['pnl'] < 0))
+        profit_factor = total_wins / max(total_losses, 0.01)
         
-        # Calculate drawdown
-        max_drawdown = self.performance_metrics.calculate_max_drawdown(self.equity_curve)
+        # Calculate max drawdown
+        max_drawdown = self._calculate_max_drawdown()
         
-        # Calculate Sharpe ratio
-        returns = self.performance_metrics.calculate_returns(self.equity_curve)
-        sharpe_ratio = self.performance_metrics.calculate_sharpe_ratio(returns)
-        
-        # Calculate trade statistics
-        if self.trade_history:
-            avg_trade_duration = sum(t['duration_minutes'] for t in self.trade_history) / len(self.trade_history)
-            avg_win = sum(t['pnl'] for t in self.trade_history if t['pnl'] > 0) / max(1, self.winning_trades)
-            avg_loss = sum(t['pnl'] for t in self.trade_history if t['pnl'] < 0) / max(1, self.losing_trades)
-            largest_win = max((t['pnl'] for t in self.trade_history), default=0)
-            largest_loss = min((t['pnl'] for t in self.trade_history), default=0)
+        # Calculate Sharpe ratio (simplified)
+        if len(self.trade_history) > 1:
+            returns = [t['return_pct'] for t in self.trade_history]
+            sharpe_ratio = np.mean(returns) / max(np.std(returns), 0.01) * np.sqrt(252)
         else:
-            avg_trade_duration = avg_win = avg_loss = largest_win = largest_loss = 0
+            sharpe_ratio = 0.0
+        
+        # Calculate average trade duration
+        if self.trade_history:
+            durations = [(t['exit_time'] - t['entry_time']).total_seconds() / 3600 for t in self.trade_history]
+            avg_duration = np.mean(durations)
+        else:
+            avg_duration = 0.0
+        
+        # Calculate other metrics
+        if self.trade_history:
+            wins = [t['pnl'] for t in self.trade_history if t['pnl'] > 0]
+            losses = [t['pnl'] for t in self.trade_history if t['pnl'] < 0]
+            
+            avg_win = np.mean(wins) if wins else 0.0
+            avg_loss = np.mean(losses) if losses else 0.0
+            largest_win = max(wins) if wins else 0.0
+            largest_loss = min(losses) if losses else 0.0
+        else:
+            avg_win = avg_loss = largest_win = largest_loss = 0.0
         
         # Calculate consecutive wins/losses
-        consecutive_wins = self.performance_metrics.calculate_consecutive_wins(self.trade_history)
-        consecutive_losses = self.performance_metrics.calculate_consecutive_losses(self.trade_history)
+        consecutive_wins = self._calculate_consecutive_wins()
+        consecutive_losses = self._calculate_consecutive_losses()
         
         return BacktestResult(
             total_trades=self.total_trades,
@@ -505,7 +404,7 @@ class BacktestEngine:
             total_return=total_return,
             max_drawdown=max_drawdown,
             sharpe_ratio=sharpe_ratio,
-            avg_trade_duration=avg_trade_duration,
+            avg_trade_duration=avg_duration,
             avg_win=avg_win,
             avg_loss=avg_loss,
             largest_win=largest_win,
@@ -517,6 +416,57 @@ class BacktestEngine:
             parameter_set=parameters,
             start_date=start_date,
             end_date=end_date,
-            initial_balance=self.initial_balance,
-            final_balance=self.current_balance
+            initial_balance=float(self.initial_balance),
+            final_balance=float(self.current_balance)
         )
+    
+    def _calculate_max_drawdown(self) -> float:
+        """Calculate maximum drawdown from equity curve."""
+        if not self.equity_curve:
+            return 0.0
+        
+        peak = self.equity_curve[0]
+        max_dd = 0.0
+        
+        for value in self.equity_curve:
+            if value > peak:
+                peak = value
+            dd = (peak - value) / peak * 100
+            if dd > max_dd:
+                max_dd = dd
+        
+        return max_dd
+    
+    def _calculate_consecutive_wins(self) -> int:
+        """Calculate maximum consecutive wins."""
+        if not self.trade_history:
+            return 0
+        
+        max_consecutive = 0
+        current_consecutive = 0
+        
+        for trade in self.trade_history:
+            if trade['pnl'] > 0:
+                current_consecutive += 1
+                max_consecutive = max(max_consecutive, current_consecutive)
+            else:
+                current_consecutive = 0
+        
+        return max_consecutive
+    
+    def _calculate_consecutive_losses(self) -> int:
+        """Calculate maximum consecutive losses."""
+        if not self.trade_history:
+            return 0
+        
+        max_consecutive = 0
+        current_consecutive = 0
+        
+        for trade in self.trade_history:
+            if trade['pnl'] < 0:
+                current_consecutive += 1
+                max_consecutive = max(max_consecutive, current_consecutive)
+            else:
+                current_consecutive = 0
+        
+        return max_consecutive

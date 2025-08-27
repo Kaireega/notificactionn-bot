@@ -18,6 +18,7 @@ from ..utils.logger import get_logger
 from .risk_manager_improved import ImprovedRiskManager as RiskManager
 from .performance_tracker import PerformanceTracker
 from .enhanced_excel_trade_recorder import EnhancedExcelTradeRecorder
+from .enhanced_exit_criteria import EnhancedExitCriteria
 
 
 class AutomatedDecisionLayer:
@@ -31,6 +32,7 @@ class AutomatedDecisionLayer:
         self.risk_manager = RiskManager(config)
         self.performance_tracker = PerformanceTracker()
         self.trade_recorder = EnhancedExcelTradeRecorder(config)
+        self.exit_criteria = EnhancedExitCriteria(config)
         
         # External components for automation
         self.notification_layer = notification_layer
@@ -742,6 +744,29 @@ class AutomatedDecisionLayer:
             print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
             self.logger.error(f"Error starting automated decision layer: {e}")
             raise
+    
+    async def evaluate_exit_conditions(
+        self,
+        trade_decision: TradeDecision,
+        current_price: Decimal,
+        market_context: MarketContext,
+        technical_indicators: Optional[TechnicalIndicators] = None,
+        trade_duration_minutes: int = 0
+    ) -> Dict[str, Any]:
+        """Evaluate exit conditions for an open trade."""
+        try:
+            return await self.exit_criteria.evaluate_exit_conditions(
+                trade_decision, current_price, market_context, 
+                technical_indicators, trade_duration_minutes
+            )
+        except Exception as e:
+            self.logger.error(f"Error evaluating exit conditions: {e}")
+            return {
+                'should_exit': False,
+                'reason': f'Exit evaluation error: {str(e)}',
+                'exit_type': None,
+                'exit_price': current_price
+            }
     
     async def close(self) -> None:
         """Close automated decision layer."""

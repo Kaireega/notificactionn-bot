@@ -177,6 +177,44 @@ class TechnicalAnalysisLayer:
                     signals['ema_signal'] = TradeSignal.SELL
                     signals['reasoning'].append("Fast EMA below slow EMA")
             
+            # Volume Analysis (if available)
+            if hasattr(indicators, 'volume') and indicators.volume is not None:
+                # Check for volume spike (50% above average)
+                if hasattr(indicators, 'volume_avg') and indicators.volume_avg is not None:
+                    volume_ratio = indicators.volume / indicators.volume_avg
+                    if volume_ratio > 1.5:
+                        signals['volume_confirmed'] = True
+                        signals['reasoning'].append(f"Volume spike detected ({volume_ratio:.1f}x average)")
+                    else:
+                        signals['volume_confirmed'] = False
+                        signals['reasoning'].append(f"Low volume ({volume_ratio:.1f}x average)")
+                else:
+                    signals['volume_confirmed'] = True  # Assume confirmed if no average available
+            else:
+                signals['volume_confirmed'] = True  # Assume confirmed if no volume data
+            
+            # Trend Strength Analysis
+            if (indicators.ema_fast is not None and indicators.ema_slow is not None and 
+                indicators.bollinger_middle is not None):
+                
+                # Calculate trend strength based on EMA separation and price position
+                ema_separation = abs(indicators.ema_fast - indicators.ema_slow) / indicators.ema_slow
+                price_position = abs(indicators.bollinger_middle - indicators.ema_slow) / indicators.ema_slow
+                
+                trend_strength = (ema_separation + price_position) / 2
+                
+                if trend_strength > 0.01:  # 1% separation indicates strong trend
+                    signals['trend_strength'] = 'strong'
+                    signals['reasoning'].append("Strong trend detected")
+                elif trend_strength > 0.005:  # 0.5% separation indicates moderate trend
+                    signals['trend_strength'] = 'moderate'
+                    signals['reasoning'].append("Moderate trend detected")
+                else:
+                    signals['trend_strength'] = 'weak'
+                    signals['reasoning'].append("Weak trend detected")
+            else:
+                signals['trend_strength'] = 'unknown'
+            
             # Determine overall signal
             buy_signals = sum(1 for signal in [signals['rsi_signal'], signals['macd_signal'], 
                                              signals['bollinger_signal'], signals['ema_signal']] 
@@ -185,15 +223,16 @@ class TechnicalAnalysisLayer:
                                               signals['bollinger_signal'], signals['ema_signal']] 
                              if signal == TradeSignal.SELL)
             
-            if buy_signals > sell_signals and buy_signals >= 1:  # More lenient: only need 1 signal
+            # Enhanced signal requirements - Stricter consensus
+            if buy_signals > sell_signals and buy_signals >= 2:  # Require at least 2 signals
                 signals['overall_signal'] = TradeSignal.BUY
                 signals['has_signal'] = True
                 signals['signal_strength'] = buy_signals / 4.0
-            elif sell_signals > buy_signals and sell_signals >= 1:  # More lenient: only need 1 signal
+            elif sell_signals > buy_signals and sell_signals >= 2:  # Require at least 2 signals
                 signals['overall_signal'] = TradeSignal.SELL
                 signals['has_signal'] = True
                 signals['signal_strength'] = sell_signals / 4.0
-            elif buy_signals == sell_signals and buy_signals >= 1:  # Handle tie cases
+            elif buy_signals == sell_signals and buy_signals >= 2:  # Handle tie cases with higher requirement
                 # In case of tie, prefer the stronger signal or use RSI as tiebreaker
                 if signals['rsi_signal'] == TradeSignal.BUY:
                     signals['overall_signal'] = TradeSignal.BUY
@@ -234,8 +273,36 @@ class TechnicalAnalysisLayer:
             timeframe_agreement /= total_timeframes
             base_confidence += timeframe_agreement * 0.3
         
+        # Enhanced confidence factors
+        confidence_boost = 0.0
+        
+        # Volume confirmation boost
+        if signal_analysis.get('volume_confirmed', False):
+            confidence_boost += 0.15
+            self.logger.debug("Volume confirmation adds 15% confidence boost")
+        
+        # Trend strength boost
+        trend_strength = signal_analysis.get('trend_strength', 'unknown')
+        if trend_strength == 'strong':
+            confidence_boost += 0.2
+            self.logger.debug("Strong trend adds 20% confidence boost")
+        elif trend_strength == 'moderate':
+            confidence_boost += 0.1
+            self.logger.debug("Moderate trend adds 10% confidence boost")
+        elif trend_strength == 'weak':
+            confidence_boost -= 0.1
+            self.logger.debug("Weak trend reduces confidence by 10%")
+        
+        # Signal strength boost
+        if signal_analysis['signal_strength'] >= 0.75:  # 3 out of 4 signals
+            confidence_boost += 0.1
+            self.logger.debug("Strong signal consensus adds 10% confidence boost")
+        
+        # Apply confidence boost
+        final_confidence = base_confidence + confidence_boost
+        
         # Cap confidence at 0.95
-        return min(base_confidence, 0.95)
+        return min(max(final_confidence, 0.0), 0.95)
     
     def _get_current_price(self, candles: List[CandleData]) -> Decimal:
         """Get current price from the latest candle."""

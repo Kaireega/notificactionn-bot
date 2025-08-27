@@ -77,8 +77,8 @@ class TechnicalDecisionLayer:
             confidence = self._calculate_technical_confidence(signal_analysis, technical_indicators)
             
             # Check if confidence meets threshold
-            if confidence < self.config.ai_confidence_threshold:
-                self.logger.info(f"❌ {pair}: Technical confidence {confidence:.2f} below threshold {self.config.ai_confidence_threshold}")
+            if confidence < self.config.technical_analysis.confidence_threshold:
+                self.logger.info(f"❌ {pair}: Technical confidence {confidence:.2f} below threshold {self.config.technical_analysis.confidence_threshold}")
                 return None
             
             # Create trade recommendation

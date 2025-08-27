@@ -68,16 +68,18 @@ class NotificationConfig:
 
 
 @dataclass
-class AIConfig:
-    """AI analysis settings."""
-    model: str = "gpt-4"
-    max_tokens: int = 1000
-    temperature: float = 0.3
-    analysis_frequency: int = 300  # seconds
-    confidence_threshold: float = 0.7
-    include_news_sentiment: bool = True
-    include_technical_analysis: bool = True
-    include_market_context: bool = True
+class TechnicalAnalysisConfig:
+    """Technical analysis settings."""
+    enabled: bool = True
+    confidence_threshold: float = 0.6
+    signal_strength_threshold: float = 0.04
+    risk_reward_ratio_minimum: float = 1.8
+    rsi_oversold: float = 30
+    rsi_overbought: float = 70
+    macd_signal_threshold: float = 0.0001
+    bollinger_threshold: float = 0.1
+    volume_confirmation: bool = True
+    trend_confirmation: bool = True
 
 
 @dataclass
@@ -135,7 +137,7 @@ class Config:
         self.market_conditions = MarketConditionsConfig()
         self.risk_management = RiskManagementConfig()
         self.notifications = NotificationConfig()
-        self.ai_analysis = AIConfig()
+        self.technical_analysis = TechnicalAnalysisConfig()
         self.data_collection = DataCollectionConfig()
         self.performance = PerformanceConfig()
         self.simulation = SimulationConfig()
@@ -224,17 +226,19 @@ class Config:
                 self.notifications.trade_alerts = notif.get('email', {}).get('trade_alerts', True)
                 self.notifications.live_trade_enabled = notif.get('live_trade_enabled', False)
             
-            # AI analysis
-            if 'ai_analysis' in self._yaml_config:
-                ai = self._yaml_config['ai_analysis']
-                self.ai_analysis.model = ai.get('model', 'gpt-4')
-                self.ai_analysis.max_tokens = ai.get('max_tokens', 1000)
-                self.ai_analysis.temperature = ai.get('temperature', 0.3)
-                self.ai_analysis.analysis_frequency = ai.get('analysis_frequency', 300)
-                self.ai_analysis.confidence_threshold = ai.get('confidence_threshold', 0.7)
-                self.ai_analysis.include_news_sentiment = ai.get('include_news_sentiment', True)
-                self.ai_analysis.include_technical_analysis = ai.get('include_technical_analysis', True)
-                self.ai_analysis.include_market_context = ai.get('include_market_context', True)
+            # Technical analysis
+            if 'technical_analysis' in self._yaml_config:
+                ta = self._yaml_config['technical_analysis']
+                self.technical_analysis.enabled = ta.get('enabled', True)
+                self.technical_analysis.confidence_threshold = ta.get('confidence_threshold', 0.6)
+                self.technical_analysis.signal_strength_threshold = ta.get('signal_strength_threshold', 0.04)
+                self.technical_analysis.risk_reward_ratio_minimum = ta.get('risk_reward_ratio_minimum', 1.8)
+                self.technical_analysis.rsi_oversold = ta.get('rsi_oversold', 30)
+                self.technical_analysis.rsi_overbought = ta.get('rsi_overbought', 70)
+                self.technical_analysis.macd_signal_threshold = ta.get('macd_signal_threshold', 0.0001)
+                self.technical_analysis.bollinger_threshold = ta.get('bollinger_threshold', 0.1)
+                self.technical_analysis.volume_confirmation = ta.get('volume_confirmation', True)
+                self.technical_analysis.trend_confirmation = ta.get('trend_confirmation', True)
             
             # Data collection
             if 'data_collection' in self._yaml_config:
@@ -302,11 +306,11 @@ class Config:
             if os.getenv('DEFAULT_TIMEFRAME'):
                 self.trading.default_timeframe = TimeFrame(os.getenv('DEFAULT_TIMEFRAME'))
             
-            # AI
-            if os.getenv('AI_MODEL'):
-                self.ai_analysis.model = os.getenv('AI_MODEL')
-            if os.getenv('AI_CONFIDENCE_THRESHOLD'):
-                self.ai_analysis.confidence_threshold = float(os.getenv('AI_CONFIDENCE_THRESHOLD'))
+            # Technical Analysis
+            if os.getenv('TECHNICAL_CONFIDENCE_THRESHOLD'):
+                self.technical_analysis.confidence_threshold = float(os.getenv('TECHNICAL_CONFIDENCE_THRESHOLD'))
+            if os.getenv('TECHNICAL_RISK_REWARD_MINIMUM'):
+                self.technical_analysis.risk_reward_ratio_minimum = float(os.getenv('TECHNICAL_RISK_REWARD_MINIMUM'))
             
             # Logging
             self.log_level = os.getenv('LOG_LEVEL', 'INFO')
@@ -331,8 +335,6 @@ class Config:
         errors = []
         
         # Check required API keys
-        if not self.openai_api_key:
-            errors.append("OPENAI_API_KEY is required")
         if not self.oanda_api_key:
             errors.append("OANDA_API_KEY is required")
         if not self.oanda_account_id:
@@ -350,9 +352,9 @@ class Config:
         if self.trading.max_trades_per_day <= 0:
             errors.append("MAX_TRADES_PER_DAY must be positive")
         
-        # Check AI settings
-        if self.ai_analysis.confidence_threshold < 0 or self.ai_analysis.confidence_threshold > 1:
-            errors.append("AI_CONFIDENCE_THRESHOLD must be between 0 and 1")
+        # Check Technical Analysis settings
+        if self.technical_analysis.confidence_threshold < 0 or self.technical_analysis.confidence_threshold > 1:
+            errors.append("TECHNICAL_CONFIDENCE_THRESHOLD must be between 0 and 1")
         
         if errors:
             raise ValueError(f"Configuration validation failed:\n" + "\n".join(errors))
@@ -379,29 +381,19 @@ class Config:
         return self.data_collection.update_frequency
     
     @property
-    def ai_confidence_threshold(self) -> float:
-        """Get AI confidence threshold."""
-        return self.ai_analysis.confidence_threshold
+    def technical_confidence_threshold(self) -> float:
+        """Get technical analysis confidence threshold."""
+        return self.technical_analysis.confidence_threshold
     
     @property
-    def ai_model(self) -> str:
-        """Get AI model name."""
-        return self.ai_analysis.model
+    def technical_risk_reward_minimum(self) -> float:
+        """Get technical analysis risk/reward minimum."""
+        return self.technical_analysis.risk_reward_ratio_minimum
     
     @property
-    def ai_max_tokens(self) -> int:
-        """Get AI max tokens."""
-        return self.ai_analysis.max_tokens
-    
-    @property
-    def ai_temperature(self) -> float:
-        """Get AI temperature."""
-        return self.ai_analysis.temperature
-    
-    @property
-    def ai_analysis_frequency(self) -> int:
-        """Get AI analysis frequency in seconds."""
-        return self.ai_analysis.analysis_frequency
+    def technical_signal_strength_threshold(self) -> float:
+        """Get technical analysis signal strength threshold."""
+        return self.technical_analysis.signal_strength_threshold
     
     @property
     def telegram_enabled(self) -> bool:

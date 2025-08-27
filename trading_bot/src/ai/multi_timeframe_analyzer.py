@@ -493,27 +493,53 @@ class MultiTimeframeAnalyzer:
             # Calculate risk/reward ratio
             risk_reward_ratio = self._calculate_risk_reward_ratio(entry_price, stop_loss, take_profit)
             
-            # Check risk/reward ratio for WINNING trades - Made more aggressive
-            min_risk_reward = 1.2  # Lowered from 2.0
+            # Enhanced risk/reward ratio check - Stricter requirements
+            min_risk_reward = 2.0  # Increased from 1.2 for better quality
             
             if risk_reward_ratio < min_risk_reward:
+                self.logger.info(f"❌ {pair}: Risk/reward ratio {risk_reward_ratio:.2f} below minimum {min_risk_reward}")
                 return None
             
-            # Check minimum confidence for WINNING trades - Made more aggressive
-            min_confidence = 0.3  # Lowered from 0.7
+            # Enhanced confidence check - Stricter requirements
+            min_confidence = 0.7  # Increased from 0.3 for higher quality
             
             if consensus_confidence < min_confidence:
+                self.logger.info(f"❌ {pair}: Consensus confidence {consensus_confidence:.2f} below minimum {min_confidence}")
                 return None
             
-            # Additional WINNING trade filters - Market conditions - Made more aggressive
-            # Only trade in favorable market conditions
-            
-            if market_context.condition in {MarketCondition.RANGING}:
-                # For consolidation/ranging, need stronger signals - Lowered threshold
-                if consensus_confidence < 0.4:  # Lowered from 0.8
+            # Enhanced market condition specific filters
+            if market_context.condition == MarketCondition.NEWS_REACTIONARY:
+                # News trades require higher confidence and R/R
+                if consensus_confidence < 0.8:
+                    self.logger.info(f"❌ {pair}: News trades require 80%+ confidence (current: {consensus_confidence:.2f})")
                     return None
-            else:
-                pass # No special confidence requirement for other conditions
+                if risk_reward_ratio < 2.5:
+                    self.logger.info(f"❌ {pair}: News trades require R/R >= 2.5 (current: {risk_reward_ratio:.2f})")
+                    return None
+                    
+            elif market_context.condition == MarketCondition.REVERSAL:
+                # Reversal trades require high confidence
+                if consensus_confidence < 0.75:
+                    self.logger.info(f"❌ {pair}: Reversal trades require 75%+ confidence (current: {consensus_confidence:.2f})")
+                    return None
+                if risk_reward_ratio < 2.0:
+                    self.logger.info(f"❌ {pair}: Reversal trades require R/R >= 2.0 (current: {risk_reward_ratio:.2f})")
+                    return None
+                    
+            elif market_context.condition == MarketCondition.BREAKOUT:
+                # Breakout trades require good confidence
+                if consensus_confidence < 0.7:
+                    self.logger.info(f"❌ {pair}: Breakout trades require 70%+ confidence (current: {consensus_confidence:.2f})")
+                    return None
+                    
+            elif market_context.condition == MarketCondition.RANGING:
+                # Ranging trades require high confidence but lower R/R
+                if consensus_confidence < 0.8:
+                    self.logger.info(f"❌ {pair}: Ranging trades require 80%+ confidence (current: {consensus_confidence:.2f})")
+                    return None
+                if risk_reward_ratio > 1.5:
+                    self.logger.info(f"❌ {pair}: Ranging trades should have R/R <= 1.5 (current: {risk_reward_ratio:.2f})")
+                    return None
             
             # Create WINNING trade recommendation
                 from datetime import datetime, timezone

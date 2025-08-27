@@ -1,4 +1,4 @@
-# Market Adaptive Trading Bot Configuration - Technical Analysis Only
+# Market Adaptive Trading Bot Configuration - Balanced Settings
 
 # Trading Settings
 trading:
@@ -50,20 +50,21 @@ risk_management:
   trailing_stop: true
   trailing_stop_atr_multiplier: 1.2  # Reduced from 1.5
 
-# Technical Analysis Settings (Replaces AI Analysis)
-technical_analysis:
-  enabled: true
-  confidence_threshold: 0.6  # Minimum confidence for trade signals
-  signal_strength_threshold: 0.04  # Minimum signal strength
-  risk_reward_ratio_minimum: 1.8  # Minimum risk/reward ratio
-  rsi_oversold: 30  # RSI oversold threshold
-  rsi_overbought: 70  # RSI overbought threshold
-  macd_signal_threshold: 0.0001  # MACD signal threshold
-  bollinger_threshold: 0.1  # Bollinger bands threshold
-  volume_confirmation: true  # Require volume confirmation
-  trend_confirmation: true  # Require trend confirmation
+# AI Analysis
+ai_analysis:
+  model: gpt-4
+  max_tokens: 1000
+  temperature: 0.25  # Slightly increased from 0.2
+  analysis_frequency: 90  # Reduced from 120 to 1.5 minutes
+  confidence_threshold: 0.6  # Reduced from 0.7 for more opportunities
+  signal_strength_threshold: 0.04  # Reduced from 0.05 for more opportunities
+  minimum_confidence: 0.65  # Reduced from 0.75
+  risk_reward_ratio_minimum: 1.8  # Reduced from 2.0 for more opportunities
+  include_news_sentiment: true
+  include_technical_analysis: true
+  include_market_context: true
 
-# Enhanced Entry/Exit Criteria - Technical Analysis Only
+# Enhanced Entry/Exit Criteria - Balanced Approach
 entry_exit_criteria:
   # Technical Analysis Requirements
   technical_requirements:
