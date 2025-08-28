@@ -49,13 +49,18 @@ class DataLayer:
             self.oanda_api = OandaApi()
             # Use real OANDA data - set to True for live trading
             self.use_real_data = True
+        # Mock data mode support
+        self.use_mock_data = getattr(config, 'use_mock_data', False)
+        if self.use_mock_data:
+            self.logger.info("Using mock data mode - no real API calls will be made")
+            self.use_real_data = False
             self.logger.info("Using real OANDA API data")
         else:
             self.oanda_api = None
             self.use_real_data = False
             self.logger.warning("Using mock data - OANDA API not available")
         
-        # Force real data usage for debugging
+                # Force real data usage for debugging
         if self.oanda_api:
             self.use_real_data = True
             print("🔧 [DEBUG] Forcing real data usage")

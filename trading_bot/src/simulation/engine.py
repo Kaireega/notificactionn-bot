@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from ..core.models import TimeFrame, CandleData, TradeExecution
 from ..utils.config import Config
-from ..ai.ai_analysis_layer import AIAnalysisLayer
+
 from ..decision.decision_layer import DecisionLayer
 from ..core.market_regime_detector import MarketRegimeDetector
 from ..core.advanced_risk_manager import AdvancedRiskManager

@@ -83,6 +83,22 @@ class TechnicalAnalysisConfig:
 
 
 @dataclass
+class AIAnalysisConfig:
+    """AI analysis settings."""
+    model: str = "gpt-4"
+    max_tokens: int = 1000
+    temperature: float = 0.3
+    analysis_frequency: int = 300
+    confidence_threshold: float = 0.5
+    signal_strength_threshold: float = 0.03
+    minimum_confidence: float = 0.6
+    risk_reward_ratio_minimum: float = 1.1
+    include_news_sentiment: bool = True
+    include_technical_analysis: bool = True
+    include_market_context: bool = True
+
+
+@dataclass
 class DataCollectionConfig:
     """Data collection settings."""
     historical_days: int = 30
@@ -138,6 +154,7 @@ class Config:
         self.risk_management = RiskManagementConfig()
         self.notifications = NotificationConfig()
         self.technical_analysis = TechnicalAnalysisConfig()
+        self.ai_analysis = AIAnalysisConfig()
         self.data_collection = DataCollectionConfig()
         self.performance = PerformanceConfig()
         self.simulation = SimulationConfig()
@@ -237,6 +254,25 @@ class Config:
                 self.technical_analysis.rsi_overbought = ta.get('rsi_overbought', 70)
                 self.technical_analysis.macd_signal_threshold = ta.get('macd_signal_threshold', 0.0001)
                 self.technical_analysis.bollinger_threshold = ta.get('bollinger_threshold', 0.1)
+            
+            # AI analysis
+            if 'ai_analysis' in self._yaml_config:
+                ai = self._yaml_config['ai_analysis']
+                self.ai_analysis.model = ai.get('model', 'gpt-4')
+                self.ai_analysis.max_tokens = ai.get('max_tokens', 1000)
+                self.ai_analysis.temperature = ai.get('temperature', 0.3)
+                self.ai_analysis.analysis_frequency = ai.get('analysis_frequency', 300)
+                self.ai_analysis.confidence_threshold = ai.get('confidence_threshold', 0.5)
+                self.ai_analysis.signal_strength_threshold = ai.get('signal_strength_threshold', 0.03)
+                self.ai_analysis.minimum_confidence = ai.get('minimum_confidence', 0.6)
+                self.ai_analysis.risk_reward_ratio_minimum = ai.get('risk_reward_ratio_minimum', 1.1)
+                self.ai_analysis.include_news_sentiment = ai.get('include_news_sentiment', True)
+                self.ai_analysis.include_technical_analysis = ai.get('include_technical_analysis', True)
+                self.ai_analysis.include_market_context = ai.get('include_market_context', True)
+            
+            # Technical analysis volume and trend confirmation (if technical_analysis section exists)
+            if 'technical_analysis' in self._yaml_config:
+                ta = self._yaml_config['technical_analysis']
                 self.technical_analysis.volume_confirmation = ta.get('volume_confirmation', True)
                 self.technical_analysis.trend_confirmation = ta.get('trend_confirmation', True)
             
@@ -279,7 +315,6 @@ class Config:
         """Load configuration values from environment variables."""
         try:
             # API Keys
-            self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
             self.oanda_api_key = os.getenv('OANDA_API_KEY', '')
             self.oanda_account_id = os.getenv('OANDA_ACCOUNT_ID', '')
             self.oanda_url = os.getenv('OANDA_URL', 'https://api-fxpractice.oanda.com/v3')
@@ -312,6 +347,14 @@ class Config:
             if os.getenv('TECHNICAL_RISK_REWARD_MINIMUM'):
                 self.technical_analysis.risk_reward_ratio_minimum = float(os.getenv('TECHNICAL_RISK_REWARD_MINIMUM'))
             
+            # AI Analysis
+            if os.getenv('OPENAI_API_KEY'):
+                self.openai_api_key = os.getenv('OPENAI_API_KEY')
+            if os.getenv('AI_CONFIDENCE_THRESHOLD'):
+                self.ai_analysis.confidence_threshold = float(os.getenv('AI_CONFIDENCE_THRESHOLD'))
+            if os.getenv('AI_ANALYSIS_FREQUENCY'):
+                self.ai_analysis.analysis_frequency = int(os.getenv('AI_ANALYSIS_FREQUENCY'))
+            
             # Logging
             self.log_level = os.getenv('LOG_LEVEL', 'INFO')
             self.log_file = os.getenv('LOG_FILE', 'logs/trading_bot.log')
@@ -335,16 +378,10 @@ class Config:
         errors = []
         
         # Check required API keys
-        if not self.oanda_api_key:
+        if not self.oanda_api_key or self.oanda_api_key == 'your_oanda_api_key_here':
             errors.append("OANDA_API_KEY is required")
-        if not self.oanda_account_id:
+        if not self.oanda_account_id or self.oanda_account_id == 'your_oanda_account_id_here':
             errors.append("OANDA_ACCOUNT_ID is required")
-        
-        # Check notification settings
-        if self.notifications.telegram_enabled and not self.telegram_bot_token:
-            errors.append("TELEGRAM_BOT_TOKEN is required when Telegram is enabled")
-        if self.notifications.email_enabled and not self.email_username:
-            errors.append("EMAIL_USERNAME is required when email is enabled")
         
         # Check trading settings
         if self.trading.risk_percentage <= 0 or self.trading.risk_percentage > 100:
@@ -463,12 +500,27 @@ class Config:
                 'trade_alerts': self.notifications.trade_alerts,
                 'notification_cooldown': self.notifications.notification_cooldown
             },
+            'technical_analysis': {
+                'enabled': self.technical_analysis.enabled,
+                'confidence_threshold': self.technical_analysis.confidence_threshold,
+                'signal_strength_threshold': self.technical_analysis.signal_strength_threshold,
+                'risk_reward_ratio_minimum': self.technical_analysis.risk_reward_ratio_minimum,
+                'rsi_oversold': self.technical_analysis.rsi_oversold,
+                'rsi_overbought': self.technical_analysis.rsi_overbought,
+                'macd_signal_threshold': self.technical_analysis.macd_signal_threshold,
+                'bollinger_threshold': self.technical_analysis.bollinger_threshold,
+                'volume_confirmation': self.technical_analysis.volume_confirmation,
+                'trend_confirmation': self.technical_analysis.trend_confirmation
+            },
             'ai_analysis': {
                 'model': self.ai_analysis.model,
                 'max_tokens': self.ai_analysis.max_tokens,
                 'temperature': self.ai_analysis.temperature,
                 'analysis_frequency': self.ai_analysis.analysis_frequency,
                 'confidence_threshold': self.ai_analysis.confidence_threshold,
+                'signal_strength_threshold': self.ai_analysis.signal_strength_threshold,
+                'minimum_confidence': self.ai_analysis.minimum_confidence,
+                'risk_reward_ratio_minimum': self.ai_analysis.risk_reward_ratio_minimum,
                 'include_news_sentiment': self.ai_analysis.include_news_sentiment,
                 'include_technical_analysis': self.ai_analysis.include_technical_analysis,
                 'include_market_context': self.ai_analysis.include_market_context

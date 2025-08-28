@@ -154,11 +154,10 @@ class EnhancedExcelTradeRecorder:
                 else:
                     print(f"📝 [DEBUG] Unknown technical indicators format: {type(technical_indicators)}")
             
-            # Record AI outputs
+            # Record AI outputs (disabled)
             if ai_outputs:
-                print("📝 [DEBUG] Recording AI outputs...")
-                ai_record = self._create_ai_outputs_record(ai_outputs, decision, timestamp)
-                self.ai_outputs_data.append(ai_record)
+                print("📝 [DEBUG] AI outputs disabled - skipping recording")
+                pass
             
             # Record multi-timeframe analysis
             if multi_timeframe_analysis:
@@ -216,7 +215,7 @@ class EnhancedExcelTradeRecorder:
             "modified_stop_loss": float(decision.modified_stop_loss) if decision.modified_stop_loss else None,
             "modified_take_profit": float(decision.modified_take_profit) if decision.modified_take_profit else None,
             "risk_management_notes": decision.risk_management_notes,
-            "final_decision_reason": f"AI Confidence: {rec.confidence:.2f}, Risk Assessment: {decision.risk_management_notes}"
+            "final_decision_reason": f"Technical Confidence: {rec.confidence:.2f}, Risk Assessment: {decision.risk_management_notes}"
         }
     
     def _create_market_record(self, market_context: MarketContext, pair: str, timestamp: datetime) -> Dict[str, Any]:

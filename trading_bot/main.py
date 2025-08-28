@@ -451,7 +451,7 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                                         market_context=market_context,
                                         technical_indicators=technical_indicators,
                                         candles_by_timeframe=candles_by_timeframe,
-                                        ai_outputs={'fundamental_analysis': fundamental_analysis},
+                                        ai_outputs=None,
                                         multi_timeframe_analysis={'regime_analysis': regime_analysis},
                                         risk_assessment=None,  # Will be calculated by automated layer
                                         raw_data={'pair_analysis': pair_analysis}
@@ -484,8 +484,15 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                                             pair_analysis['trade_id'] = None
                                     else:
                                         pair_analysis['decision'] = None
+                                        # Don't count as rejected if no decision was made (likely due to existing position)
+                                        # Only count as rejected if we had a recommendation but no decision
                                         if recommendation:
-                                            loop_stats['trades_rejected'] += 1
+                                            # Check if this is due to existing position
+                                            if self._has_existing_position(recommendation.pair):
+                                                pair_analysis['status'] = 'existing_position'
+                                            else:
+                                                loop_stats['trades_rejected'] += 1
+                                                pair_analysis['status'] = 'rejected'
                                 else:
                                     pair_analysis['decision'] = None
                             except Exception as e:
@@ -700,6 +707,29 @@ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         latest_candle = candles[-1]
         return (latest_candle.high + latest_candle.low) / 2  # Use typical price
+    
+    def _has_existing_position(self, pair: str) -> bool:
+        """Check if there's an existing position for the given pair."""
+        try:
+            # Check decision layer's open positions
+            if hasattr(self.decision_layer, '_open_positions') and pair in self.decision_layer._open_positions:
+                return True
+            
+            # Check position manager
+            if hasattr(self.position_manager, 'get_position_summary'):
+                # This would need to be async, so we'll just check the decision layer for now
+                pass
+            
+            # Check risk manager
+            if hasattr(self.decision_layer, 'risk_manager') and hasattr(self.decision_layer.risk_manager, '_shared_risk_data'):
+                risk_open_positions = self.decision_layer.risk_manager._shared_risk_data.get('open_positions', {})
+                if pair in risk_open_positions:
+                    return True
+            
+            return False
+        except Exception as e:
+            self.logger.warning(f"Error checking existing position for {pair}: {e}")
+            return False
     
     async def cleanup(self):
         """Cleanup all components."""

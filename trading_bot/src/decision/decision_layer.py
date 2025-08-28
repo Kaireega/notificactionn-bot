@@ -59,7 +59,7 @@ class DecisionLayer:
                 self.logger.info(
                     f"🚫 Skipping recommendation for {recommendation.pair}: "
                     f"confidence {recommendation.confidence:.2f} below threshold "
-                    f"({self.config.ai_confidence_threshold})"
+                    f"({self.config.technical_analysis.confidence_threshold})"
                 )
                 return None
             
@@ -129,9 +129,9 @@ class DecisionLayer:
         """Check if recommendation meets basic criteria for processing."""
         
         # Check confidence threshold
-        if recommendation.confidence < self.config.ai_confidence_threshold:
+        if recommendation.confidence < self.config.technical_analysis.confidence_threshold:
             self.logger.debug(f"🔍 Confidence check failed for {recommendation.pair}: "
-                            f"{recommendation.confidence:.2f} < {self.config.ai_confidence_threshold}")
+                            f"{recommendation.confidence:.2f} < {self.config.technical_analysis.confidence_threshold}")
             return False
         
         # Check if we already have a recent decision for this pair
@@ -409,9 +409,9 @@ class DecisionLayer:
             self.logger.info(f"📊 {pair}: Analyzing recommendation - Signal: {recommendation.signal}, Confidence: {recommendation.confidence}")
             
             # Check confidence threshold
-            if recommendation.confidence < self.config.ai_confidence_threshold:
+            if recommendation.confidence < self.config.technical_analysis.confidence_threshold:
                 self.logger.info(
-                    f"❌ {pair}: Confidence {recommendation.confidence} below threshold {self.config.ai_confidence_threshold}"
+                    f"❌ {pair}: Confidence {recommendation.confidence} below threshold {self.config.technical_analysis.confidence_threshold}"
                 )
                 return None
             

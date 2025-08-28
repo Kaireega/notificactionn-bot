@@ -1,106 +1,68 @@
-# Market Adaptive Trading Bot Configuration - Technical Analysis Only
+# Market Adaptive Trading Bot Configuration
 
 # Trading Settings
 trading:
-  risk_percentage: 4.0  # Increased from 3.0 for more opportunities
-  max_trades_per_day: 15  # Increased from 10 for more opportunities
-  default_timeframe: M5  # Changed from M1 for better signal quality
+  risk_percentage: 2.0
+  max_trades_per_day: 10
+  default_timeframe: M5
   pairs:
     - EUR_USD
     - USD_JPY
     - GBP_JPY
   hold_time_settings:
-    min_hold_time_minutes: 10  # Reduced from 15 for faster entries
-    max_hold_time_minutes: 240  # 4 hours max
-    default_hold_time_minutes: 60  # Reduced from 90 for better timing
+    min_hold_time_minutes: 30
+    max_hold_time_minutes: 300  # 5 hours
+    default_hold_time_minutes: 120  # 2 hours
     market_condition_hold_times:
-      news_reactionary: [5, 60]    # 5 min to 1 hour
-      reversal: [20, 150]          # 20 min to 2.5 hours
-      breakout: [30, 180]          # 30 min to 3 hours
-      ranging: [15, 90]            # 15 min to 1.5 hours
+      news_reactionary: [30, 180]   # 30 min to 3 hours
+      reversal: [60, 300]           # 1 hour to 5 hours
+      breakout: [120, 300]          # 2 hours to 5 hours
+      ranging: [30, 180]            # 30 min to 3 hours
 
 # Multi-Timeframe Analysis Settings
 multi_timeframe:
   enabled: true
   timeframes:
+    - M1
     - M5
     - M15
-    - H1  # Added H1 for better trend confirmation
   weights:
-    M5: 0.4    # 40% weight - immediate signals
-    M15: 0.4   # 40% weight - short-term signals
-    H1: 0.2    # 20% weight - trend confirmation
-  minimum_timeframes: 2  # Reduced from 3 - require only 2 timeframes
-  consensus_threshold: 0.65  # Reduced from 0.75 for more opportunities
+    M1: 0.1    # 10% weight - noise filtering
+    M5: 0.3    # 30% weight - short-term signals
+    M15: 0.4   # 40% weight - medium-term trends
+  minimum_timeframes: 2
+  consensus_threshold: 0.6
 
 # Market Conditions
 market_conditions:
-  volatility_threshold: 0.0018  # Slightly reduced for more opportunities
-  trend_strength_threshold: 0.75  # Reduced from 0.8
-  breakout_threshold: 0.0022  # Slightly reduced
-  ranging_threshold: 0.0009  # Slightly reduced
+  volatility_threshold: 0.0015
+  trend_strength_threshold: 0.7
+  breakout_threshold: 0.0020
+  ranging_threshold: 0.0008
 
 # Risk Management
 risk_management:
-  max_daily_loss: 7.0  # Increased from 5.0 for more flexibility
-  max_position_size: 75000.0  # Increased from 50000.0
-  correlation_limit: 0.65  # Slightly increased from 0.6
-  max_open_trades: 4  # Increased from 3
-  stop_loss_atr_multiplier: 1.8  # Reduced from 2.0 for tighter stops
+  max_daily_loss: 5.0
+  max_position_size: 10.0
+  correlation_limit: 0.7
+  max_open_trades: 3
+  stop_loss_atr_multiplier: 2.0
   trailing_stop: true
-  trailing_stop_atr_multiplier: 1.2  # Reduced from 1.5
+  trailing_stop_atr_multiplier: 1.5
 
-# Technical Analysis Settings (Replaces AI Analysis)
-technical_analysis:
-  enabled: true
-  confidence_threshold: 0.6  # Minimum confidence for trade signals
-  signal_strength_threshold: 0.04  # Minimum signal strength
-  risk_reward_ratio_minimum: 1.8  # Minimum risk/reward ratio
-  rsi_oversold: 30  # RSI oversold threshold
-  rsi_overbought: 70  # RSI overbought threshold
-  macd_signal_threshold: 0.0001  # MACD signal threshold
-  bollinger_threshold: 0.1  # Bollinger bands threshold
-  volume_confirmation: true  # Require volume confirmation
-  trend_confirmation: true  # Require trend confirmation
-
-# Enhanced Entry/Exit Criteria - Technical Analysis Only
-entry_exit_criteria:
-  # Technical Analysis Requirements
-  technical_requirements:
-    minimum_rsi_divergence: 0.25  # Reduced from 0.3
-    minimum_macd_signal: 0.00015  # Reduced from 0.0002
-    bollinger_band_touch_threshold: 0.04  # Reduced from 0.05
-    ema_trend_confirmation: true  # Require EMA trend confirmation
-    volume_confirmation: false  # Made optional - not required for all trades
-    
-  # Signal Quality Requirements
-  signal_quality:
-    minimum_signal_strength: 0.5  # Reduced from 0.6
-    minimum_consensus_score: 0.7  # Reduced from 0.8
-    trend_alignment_required: false  # Made optional
-    volatility_confirmation: false  # Made optional
-    
-  # Market Condition Filters - More Flexible
-  market_filters:
-    news_reactionary:
-      min_confidence: 0.7  # Reduced from 0.8
-      max_hold_time: 60  # Reduced from 90
-      require_volume_spike: false  # Made optional
-      
-    reversal:
-      min_confidence: 0.65  # Reduced from 0.75
-      require_divergence: false  # Made optional
-      require_support_resistance: false  # Made optional
-      
-    breakout:
-      min_confidence: 0.6  # Reduced from 0.7
-      require_volume_confirmation: false  # Made optional
-      require_previous_consolidation: false  # Made optional
-      
-    ranging:
-      min_confidence: 0.7  # Reduced from 0.8
-      require_clear_boundaries: false  # Made optional
-      max_risk_reward: 1.8  # Increased from 1.5
+# AI Analysis
+ai_analysis:
+  model: gpt-4
+  max_tokens: 1000
+  temperature: 0.3
+  analysis_frequency: 300  # 5 minutes
+  confidence_threshold: 0.5  # Lowered from 0.7 to generate more recommendations
+  signal_strength_threshold: 0.03  # Lowered threshold for more trading opportunities (3% minimum)
+  minimum_confidence: 0.6  # Lowered confidence requirement for more trades
+  risk_reward_ratio_minimum: 1.1  # Lowered to 1:1.1 risk/reward ratio for testing
+  include_news_sentiment: true
+  include_technical_analysis: true
+  include_market_context: true
 
 # Notifications
 notifications:
@@ -113,17 +75,17 @@ notifications:
     daily_summary: true
     trade_alerts: true
   loop_reports:
-    enabled: true
+    enabled: true # Disabled to reduce notification spam
     send_on_error: true
     include_performance: true
-  notification_cooldown: 90  # Reduced from 120 to 1.5 minutes
+  notification_cooldown: 300  # 5 minutes
   manual_trade_approval: true
-  pre_trade_cooldown_seconds: 15  # Reduced from 30
+  pre_trade_cooldown_seconds: 0
 
 # Data Collection
 data_collection:
   historical_days: 30
-  update_frequency: 90  # Reduced from 120 to 1.5 minutes
+  update_frequency: 300  # 5 minutes
   store_raw_data: true
   compression: true
   backup_frequency: 24
@@ -139,4 +101,4 @@ performance:
   track_metrics: true
   save_trades: true
   generate_reports: true
-  report_frequency: daily
+  report_frequency: daily 

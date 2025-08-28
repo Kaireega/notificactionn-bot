@@ -70,12 +70,12 @@ class AutomatedDecisionLayer:
                 self.logger.info(
                     f"🚫 Skipping recommendation for {recommendation.pair}: "
                     f"confidence {recommendation.confidence:.2f} below threshold "
-                    f"({self.config.ai_confidence_threshold})"
+                    f"({self.config.technical_analysis.confidence_threshold})"
                 )
                 return None
             
             # Apply risk management rules
-            fundamental_analysis = ai_outputs.get('fundamental_analysis') if ai_outputs else None
+            fundamental_analysis = None  # No AI analysis available
             risk_assessment = await self.risk_manager.assess_risk(
                 recommendation, current_price, market_context, fundamental_analysis
             )
@@ -460,9 +460,9 @@ class AutomatedDecisionLayer:
         """Check if recommendation meets basic criteria for processing."""
         
         # Check confidence threshold
-        if recommendation.confidence < self.config.ai_confidence_threshold:
+        if recommendation.confidence < self.config.technical_analysis.confidence_threshold:
             self.logger.debug(f"🔍 Confidence check failed for {recommendation.pair}: "
-                            f"{recommendation.confidence:.2f} < {self.config.ai_confidence_threshold}")
+                            f"{recommendation.confidence:.2f} < {self.config.technical_analysis.confidence_threshold}")
             return False
         
         # Check if we already have a recent decision for this pair
@@ -483,7 +483,7 @@ class AutomatedDecisionLayer:
         
         # Check if we have an open position for this pair (check both local and actual positions)
         if recommendation.pair in self._open_positions:
-            self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have open position in local tracking")
+            self.logger.debug(f"ℹ️ {recommendation.pair}: Already have open position in local tracking - skipping new trade")
             return False
         
         # Check actual open positions from position manager
@@ -492,7 +492,7 @@ class AutomatedDecisionLayer:
                 position_summary = await self.position_manager.get_position_summary()
                 actual_open_positions = position_summary.get('open_positions', {})
                 if recommendation.pair in actual_open_positions:
-                    self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have active trade (Position Manager)")
+                    self.logger.debug(f"ℹ️ {recommendation.pair}: Already have active trade (Position Manager) - skipping new trade")
                     return False
             except Exception as e:
                 self.logger.warning(f"Error checking actual positions for {recommendation.pair}: {e}")
@@ -501,7 +501,7 @@ class AutomatedDecisionLayer:
         try:
             risk_open_positions = self.risk_manager._shared_risk_data.get('open_positions', {})
             if recommendation.pair in risk_open_positions:
-                self.logger.info(f"🚫 Skipping {recommendation.pair}: Already have active trade (Risk Manager)")
+                self.logger.debug(f"ℹ️ {recommendation.pair}: Already have active trade (Risk Manager) - skipping new trade")
                 return False
         except Exception as e:
             self.logger.warning(f"Error checking risk manager positions for {recommendation.pair}: {e}")
