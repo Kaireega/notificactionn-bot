@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from decimal import Decimal
 import pytz
+import urllib3
 
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ sys.path.append(str(root_dir))
 
 from scraping.fx_calendar import get_fx_calendar
 from scraping.bloomberg_com import bloomberg_com
-from scraping.dailyfx_com import dailyfx_com
+from scraping.forex_sentiment import forex_sentiment
 from db.db import DataDB
 from ..core.models import MarketContext, MarketCondition
 from ..utils.config import Config
@@ -224,16 +225,15 @@ class FundamentalAnalyzer:
         """Load news sentiment data using existing scrapers."""
         try:
             # Disable SSL warnings for web scraping
-            import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
             # Use existing scraping functions (SSL handling is done in the scraping functions)
             bloomberg_news = bloomberg_com()
-            dailyfx_sentiment = dailyfx_com()
+            forex_sentiment_data = forex_sentiment()
             
             self._news_cache = {
                 'bloomberg': bloomberg_news,
-                'dailyfx': dailyfx_sentiment,
+                'forex_sentiment': forex_sentiment_data,
                 'timestamp': datetime.now(timezone.utc)
             }
             
@@ -241,7 +241,7 @@ class FundamentalAnalyzer:
             
         except Exception as e:
             self.logger.error(f"Error loading news data: {e}")
-            self._news_cache = {'bloomberg': [], 'dailyfx': [], 'timestamp': datetime.now(timezone.utc)}
+            self._news_cache = {'bloomberg': [], 'forex_sentiment': [], 'timestamp': datetime.now(timezone.utc)}
     
     def _get_current_session(self) -> str:
         """Get current market session."""
@@ -356,7 +356,7 @@ class FundamentalAnalyzer:
         sentiment_data = {
             'overall_sentiment': 0.0,
             'bloomberg_sentiment': 0.0,
-            'dailyfx_sentiment': 0.0,
+            'forex_sentiment': 0.0,
             'relevant_headlines': [],
             'sentiment_score': 0.0
         }
@@ -374,17 +374,17 @@ class FundamentalAnalyzer:
                     sentiment = self._analyze_headline_sentiment(title)
                     sentiment_data['bloomberg_sentiment'] += sentiment
         
-        # Analyze DailyFX sentiment
-        dailyfx_data = self._news_cache.get('dailyfx', [])
-        if dailyfx_data:
-            sentiment_data['dailyfx_sentiment'] = dailyfx_data.get('sentiment', 0.0)
+        # Analyze Forex Sentiment
+        forex_sentiment_data = self._news_cache.get('forex_sentiment', {})
+        if forex_sentiment_data:
+            sentiment_data['forex_sentiment'] = forex_sentiment_data.get('sentiment', 0.0)
         
         # Calculate overall sentiment
         if relevant_bloomberg:
             sentiment_data['bloomberg_sentiment'] /= len(relevant_bloomberg)
         
         sentiment_data['overall_sentiment'] = (
-            sentiment_data['bloomberg_sentiment'] + sentiment_data['dailyfx_sentiment']
+            sentiment_data['bloomberg_sentiment'] + sentiment_data['forex_sentiment']
         ) / 2
         
         sentiment_data['relevant_headlines'] = relevant_bloomberg

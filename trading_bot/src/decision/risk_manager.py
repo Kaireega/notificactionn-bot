@@ -100,7 +100,7 @@ class RiskManager:
         """Check basic risk management rules."""
         
         # Check confidence threshold - Made more aggressive
-        confidence_threshold = min(self.config.ai_analysis.confidence_threshold, 0.2)  # Even more lenient for testing
+        confidence_threshold = min(self.config.technical_analysis.confidence_threshold, 0.2)  # Even more lenient for testing
         if recommendation.confidence < confidence_threshold:
             return {
                 'approved': False,

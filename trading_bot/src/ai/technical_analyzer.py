@@ -41,102 +41,184 @@ class TechnicalAnalyzer:
                 self.logger.warning(f"⚠️ Insufficient candles for technical analysis: {len(candles)} < 20")
             return TechnicalIndicators()
         
+        # FILTER OUT CANDLES THAT ARE TOO CLOSE IN TIME
+        filtered_candles = self._filter_candles_by_time(candles)
+        if len(filtered_candles) < 20:
+            if self.logger:
+                self.logger.warning(f"⚠️ After time filtering, insufficient candles: {len(filtered_candles)} < 20")
+            return TechnicalIndicators()
+        
+        if self.logger:
+            self.logger.info(f"📈 Using {len(filtered_candles)} filtered candles for analysis")
+        
+        # VALIDATE PRICE MOVEMENTS - Ensure we have meaningful data
+        if not self._validate_price_movements(filtered_candles):
+            if self.logger:
+                self.logger.warning("⚠️ Insufficient price movement for meaningful technical analysis")
+            return TechnicalIndicators()
+        
         try:
             # Convert candles to DataFrame format expected by technicals
-            df = self._candles_to_dataframe(candles)
+            df = self._candles_to_dataframe(filtered_candles)
             
             # Apply indicators one by one and extract values immediately
             indicators = TechnicalIndicators()
             
-            # RSI
+            # RSI - FIXED CALCULATION
             try:
                 df_rsi = RSI(df, n=14)
-                if 'RSI_14' in df_rsi.columns:
-                    latest_rsi = df_rsi.iloc[-1]['RSI_14']
-                    if pd.notna(latest_rsi):
+                rsi_column = f'RSI_14'
+                if rsi_column in df_rsi.columns:
+                    latest_rsi = df_rsi.iloc[-1][rsi_column]
+                    if pd.notna(latest_rsi) and latest_rsi != 0:
                         indicators.rsi = float(latest_rsi)
                         indicators.rsi_14 = float(latest_rsi)
+                        if self.logger:
+                            self.logger.debug(f"RSI calculated: {indicators.rsi:.2f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"RSI value is NaN or 0: {latest_rsi}")
                 else:
                     if self.logger:
-                        self.logger.warning("RSI column not found in DataFrame")
+                        self.logger.warning(f"RSI column '{rsi_column}' not found. Available columns: {list(df_rsi.columns)}")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating RSI: {e}")
+                import traceback
+                if self.logger:
+                    self.logger.error(traceback.format_exc())
             
-            # MACD
+            # MACD - FIXED CALCULATION
             try:
                 df_macd = MACD(df, n_slow=26, n_fast=12, n_signal=9)
+                
+                # MACD Line
                 if 'MACD' in df_macd.columns:
                     latest_macd = df_macd.iloc[-1]['MACD']
-                    if pd.notna(latest_macd):
+                    if pd.notna(latest_macd) and abs(latest_macd) > 1e-10:  # Check for non-zero
                         indicators.macd = float(latest_macd)
                         indicators.macd_line = float(latest_macd)
+                        if self.logger:
+                            self.logger.debug(f"MACD calculated: {indicators.macd:.6f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"MACD value is NaN or near zero: {latest_macd}")
                 else:
                     if self.logger:
-                        self.logger.warning("MACD column not found in DataFrame")
+                        self.logger.warning(f"MACD column not found. Available columns: {list(df_macd.columns)}")
                 
+                # MACD Signal
                 if 'SIGNAL' in df_macd.columns:
                     latest_signal = df_macd.iloc[-1]['SIGNAL']
-                    if pd.notna(latest_signal):
+                    if pd.notna(latest_signal) and abs(latest_signal) > 1e-10:
                         indicators.macd_signal = float(latest_signal)
                         indicators.macd_signal_line = float(latest_signal)
+                        if self.logger:
+                            self.logger.debug(f"MACD Signal calculated: {indicators.macd_signal:.6f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"MACD Signal value is NaN or near zero: {latest_signal}")
                 else:
                     if self.logger:
-                        self.logger.warning("MACD Signal column not found in DataFrame")
+                        self.logger.warning(f"MACD Signal column not found. Available columns: {list(df_macd.columns)}")
                 
+                # MACD Histogram
                 if 'HIST' in df_macd.columns:
                     latest_hist = df_macd.iloc[-1]['HIST']
                     if pd.notna(latest_hist):
                         indicators.macd_histogram = float(latest_hist)
                         indicators.macd_histogram_line = float(latest_hist)
+                        if self.logger:
+                            self.logger.debug(f"MACD Histogram calculated: {indicators.macd_histogram:.6f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"MACD Histogram value is NaN: {latest_hist}")
                 else:
                     if self.logger:
-                        self.logger.warning("MACD Histogram column not found in DataFrame")
+                        self.logger.warning(f"MACD Histogram column not found. Available columns: {list(df_macd.columns)}")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating MACD: {e}")
+                import traceback
+                if self.logger:
+                    self.logger.error(traceback.format_exc())
             
-            # Bollinger Bands
+            # Bollinger Bands - FIXED CALCULATION
             try:
                 df_bb = BollingerBands(df, n=20, s=2)
                 
+                # Bollinger Upper
                 if 'BB_UP' in df_bb.columns:
                     latest_bb_upper = df_bb.iloc[-1]['BB_UP']
-                    if pd.notna(latest_bb_upper):
+                    if pd.notna(latest_bb_upper) and latest_bb_upper > 0:
                         indicators.bollinger_upper = float(latest_bb_upper)
+                        if self.logger:
+                            self.logger.debug(f"Bollinger Upper calculated: {indicators.bollinger_upper:.5f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"Bollinger Upper value is NaN or <= 0: {latest_bb_upper}")
                 else:
                     if self.logger:
-                        self.logger.warning("BB_UP column not found in DataFrame")
+                        self.logger.warning(f"BB_UP column not found. Available columns: {list(df_bb.columns)}")
                 
+                # Bollinger Lower
                 if 'BB_LW' in df_bb.columns:
                     latest_bb_lower = df_bb.iloc[-1]['BB_LW']
-                    if pd.notna(latest_bb_lower):
+                    if pd.notna(latest_bb_lower) and latest_bb_lower > 0:
                         indicators.bollinger_lower = float(latest_bb_lower)
+                        if self.logger:
+                            self.logger.debug(f"Bollinger Lower calculated: {indicators.bollinger_lower:.5f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"Bollinger Lower value is NaN or <= 0: {latest_bb_lower}")
                 else:
                     if self.logger:
-                        self.logger.warning("BB_LW column not found in DataFrame")
+                        self.logger.warning(f"BB_LW column not found. Available columns: {list(df_bb.columns)}")
                 
+                # Bollinger Middle
                 if 'BB_MA' in df_bb.columns:
                     latest_bb_middle = df_bb.iloc[-1]['BB_MA']
-                    if pd.notna(latest_bb_middle):
+                    if pd.notna(latest_bb_middle) and latest_bb_middle > 0:
                         indicators.bollinger_middle = float(latest_bb_middle)
                         indicators.bb_ma = float(latest_bb_middle)
+                        if self.logger:
+                            self.logger.debug(f"Bollinger Middle calculated: {indicators.bollinger_middle:.5f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"Bollinger Middle value is NaN or <= 0: {latest_bb_middle}")
                 else:
                     if self.logger:
-                        self.logger.warning("BB_MA column not found in DataFrame")
+                        self.logger.warning(f"BB_MA column not found. Available columns: {list(df_bb.columns)}")
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error calculating Bollinger Bands: {e}")
+                import traceback
+                if self.logger:
+                    self.logger.error(traceback.format_exc())
             
-            # ATR
+            # ATR - FIXED CALCULATION
             try:
                 df_atr = ATR(df, n=14)
                 
                 if 'ATR_14' in df_atr.columns:
                     latest_atr = df_atr.iloc[-1]['ATR_14']
-                    if pd.notna(latest_atr):
+                    if pd.notna(latest_atr) and latest_atr > 0:
                         indicators.atr = float(latest_atr)
                         indicators.atr_14 = float(latest_atr)
+                        if self.logger:
+                            self.logger.debug(f"ATR calculated: {indicators.atr:.6f}")
+                    else:
+                        if self.logger:
+                            self.logger.warning(f"ATR value is NaN or <= 0: {latest_atr}")
+                else:
+                    if self.logger:
+                        self.logger.warning(f"ATR_14 column not found. Available columns: {list(df_atr.columns)}")
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error calculating ATR: {e}")
+                import traceback
+                if self.logger:
+                    self.logger.error(traceback.format_exc())
                 else:
                     if self.logger:
                         self.logger.warning("ATR_14 column not found in DataFrame")
@@ -373,4 +455,75 @@ class TechnicalAnalyzer:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error in trend analysis: {e}")
-            return {} 
+            return {}
+    
+    def _filter_candles_by_time(self, candles: List[CandleData]) -> List[CandleData]:
+        """Filter out candles that are too close in time to prevent calculation errors."""
+        if len(candles) < 2:
+            return candles
+        
+        filtered_candles = [candles[0]]  # Always include the first candle
+        min_time_diff = 300  # 5 minutes in seconds
+        
+        for i in range(1, len(candles)):
+            current_candle = candles[i]
+            last_filtered_candle = filtered_candles[-1]
+            
+            # Calculate time difference in seconds
+            time_diff = (current_candle.timestamp - last_filtered_candle.timestamp).total_seconds()
+            
+            # Only include candles that are at least 5 minutes apart
+            if time_diff >= min_time_diff:
+                filtered_candles.append(current_candle)
+                if self.logger:
+                    self.logger.debug(f"✅ Included candle at {current_candle.timestamp} (diff: {time_diff:.0f}s)")
+            else:
+                if self.logger:
+                    self.logger.debug(f"⏰ Skipped candle at {current_candle.timestamp} (diff: {time_diff:.0f}s < {min_time_diff}s)")
+        
+        if self.logger:
+            self.logger.info(f"📊 Filtered {len(candles)} candles to {len(filtered_candles)} candles")
+        
+        return filtered_candles
+    
+    def _validate_price_movements(self, candles: List[CandleData]) -> bool:
+        """Validate that we have sufficient price movement for meaningful analysis."""
+        if len(candles) < 5:
+            return False
+        
+        try:
+            # Calculate price range
+            prices = [float(c.close) for c in candles]
+            min_price = min(prices)
+            max_price = max(prices)
+            
+            # Calculate price range as percentage
+            if min_price > 0:
+                price_range_pct = ((max_price - min_price) / min_price) * 100
+            else:
+                return False
+            
+            # Calculate average price movement between consecutive candles
+            price_changes = []
+            for i in range(1, len(prices)):
+                if prices[i-1] > 0:
+                    change_pct = abs((prices[i] - prices[i-1]) / prices[i-1]) * 100
+                    price_changes.append(change_pct)
+            
+            avg_change = sum(price_changes) / len(price_changes) if price_changes else 0
+            
+            # Require minimum price movement
+            min_range_pct = 0.01  # 0.01% minimum range
+            min_avg_change = 0.001  # 0.001% minimum average change
+            
+            has_sufficient_movement = (price_range_pct >= min_range_pct and avg_change >= min_avg_change)
+            
+            if self.logger:
+                self.logger.debug(f"📊 Price validation: range={price_range_pct:.4f}%, avg_change={avg_change:.4f}%, sufficient={has_sufficient_movement}")
+            
+            return has_sufficient_movement
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error validating price movements: {e}")
+            return False 

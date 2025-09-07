@@ -416,16 +416,26 @@ class DataLayer:
         return volatility_percentage
     
     def _determine_market_condition(self, candles: List[CandleData], volatility: float) -> MarketCondition:
-        """Determine market condition based on price action."""
-        # Volatility is now in percentage (0.1 = 0.1%)
-        if volatility > 0.2:  # > 0.2%
+        """Determine market condition based on price action with market-tested thresholds."""
+        # Volatility is in percentage (0.1 = 0.1%)
+        # Market-tested thresholds for forex pairs
+        
+        # Calculate trend strength to improve market condition detection
+        trend_strength = self._calculate_trend_strength(candles)
+        
+        # More realistic volatility thresholds for forex
+        if volatility > 0.5:  # > 0.5% - Very high volatility, likely news-driven
             return MarketCondition.NEWS_REACTIONARY
-        elif volatility > 0.15:  # > 0.15%
+        elif volatility > 0.3:  # > 0.3% - High volatility, potential breakout
             return MarketCondition.BREAKOUT
-        elif volatility > 0.1:  # > 0.1%
+        elif volatility > 0.2:  # > 0.2% - Moderate volatility, potential reversal
             return MarketCondition.REVERSAL
-        else:
+        elif volatility > 0.1 and trend_strength > 0.6:  # Trending with moderate volatility
+            return MarketCondition.TRENDING
+        elif volatility > 0.05:  # > 0.05% - Low volatility, ranging
             return MarketCondition.RANGING
+        else:  # < 0.05% - Very low volatility, consolidation
+            return MarketCondition.CONSOLIDATION
     
     def _calculate_trend_strength(self, candles: List[CandleData]) -> float:
         """Calculate trend strength."""

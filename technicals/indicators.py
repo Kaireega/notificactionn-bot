@@ -9,13 +9,25 @@ def BollingerBands(df: pd.DataFrame, n=20, s=2):
     return df
 
 def ATR(df: pd.DataFrame, n=14):
-    prev_c = df.mid_c.shift(1)
-    tr1 = df.mid_h - df.mid_l
-    tr2 = abs(df.mid_h - prev_c)
-    tr3 = abs(prev_c - df.mid_l)
-    tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
-    df[f"ATR_{n}"] = tr.rolling(window=n).mean()
-    return df
+    try:
+        prev_c = df.mid_c.shift(1)
+        tr1 = df.mid_h - df.mid_l
+        tr2 = abs(df.mid_h - prev_c)
+        tr3 = abs(prev_c - df.mid_l)
+        
+        # Handle NaN values before max operation
+        tr1 = tr1.fillna(0)
+        tr2 = tr2.fillna(0)
+        tr3 = tr3.fillna(0)
+        
+        tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+        df[f"ATR_{n}"] = tr.rolling(window=n).mean()
+        return df
+    except Exception as e:
+        # Return original DataFrame if ATR calculation fails
+        print(f"Error in ATR calculation: {e}")
+        df[f"ATR_{n}"] = 0.0
+        return df
 
 def KeltnerChannels(df: pd.DataFrame, n_ema=20, n_atr=10):
     df['EMA'] = df.mid_c.ewm(span=n_ema, min_periods=n_ema).mean()
@@ -55,17 +67,33 @@ def MACD(df: pd.DataFrame, n_slow=26, n_fast=12, n_signal=9):
 
 def Stochastic(df: pd.DataFrame, n=14, k=3, d=3):
     """Calculate Stochastic Oscillator."""
-    # Calculate %K
-    lowest_low = df.mid_l.rolling(window=n).min()
-    highest_high = df.mid_h.rolling(window=n).max()
-    
-    # %K = (Current Close - Lowest Low) / (Highest High - Lowest Low) * 100
-    df['STOCH_K'] = ((df.mid_c - lowest_low) / (highest_high - lowest_low)) * 100
-    
-    # %D is the 3-period SMA of %K
-    df['STOCH_D'] = df['STOCH_K'].rolling(window=k).mean()
-    
-    return df
+    try:
+        # Calculate %K
+        lowest_low = df.mid_l.rolling(window=n).min()
+        highest_high = df.mid_h.rolling(window=n).max()
+        
+        # Handle division by zero
+        denominator = (highest_high - lowest_low)
+        denominator = denominator.replace(0, 1)  # Replace 0 with 1 to avoid division by zero
+        
+        # %K = (Current Close - Lowest Low) / (Highest High - Lowest Low) * 100
+        stoch_k = ((df.mid_c - lowest_low) / denominator) * 100
+        
+        # Handle NaN values
+        stoch_k = stoch_k.fillna(50)  # Fill NaN with neutral value
+        
+        df['STOCH_K'] = stoch_k
+        
+        # %D is the 3-period SMA of %K
+        df['STOCH_D'] = df['STOCH_K'].rolling(window=k).mean().fillna(50)
+        
+        return df
+    except Exception as e:
+        print(f"Error in Stochastic calculation: {e}")
+        # Return original DataFrame with default values
+        df['STOCH_K'] = 50.0
+        df['STOCH_D'] = 50.0
+        return df
 
 def EMA(df: pd.DataFrame, n=20, column='mid_c'):
     """Calculate Exponential Moving Average."""

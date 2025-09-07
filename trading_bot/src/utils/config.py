@@ -1,33 +1,29 @@
 """
-Configuration management for the Market Adaptive Trading Bot.
+Configuration management for the Technical Trading Bot.
+Pure technical analysis - no AI components.
 """
 import os
 import yaml
-import traceback
-from typing import List, Dict, Any
-from dataclasses import dataclass
 from pathlib import Path
+from dataclasses import dataclass, field
+from typing import List, Dict, Any
 from dotenv import load_dotenv
 
-from ..core.models import TimeFrame, MarketCondition
+from ..core.models import TimeFrame
 
 
 @dataclass
 class TradingConfig:
-    """Trading configuration settings."""
+    """Trading settings."""
     risk_percentage: float = 2.0
     max_trades_per_day: int = 10
     default_timeframe: TimeFrame = TimeFrame.M5
-    pairs: List[str] = None
-    
-    def __post_init__(self):
-        if self.pairs is None:
-            self.pairs = ["EUR_USD", "GBP_USD", "USD_JPY"]
+    pairs: List[str] = field(default_factory=lambda: ['EUR_USD', 'USD_JPY', 'GBP_JPY'])
 
 
 @dataclass
 class MarketConditionsConfig:
-    """Market condition detection settings."""
+    """Market conditions settings."""
     volatility_threshold: float = 0.0015
     trend_strength_threshold: float = 0.7
     breakout_threshold: float = 0.0020
@@ -41,11 +37,9 @@ class RiskManagementConfig:
     max_position_size: float = 10.0
     correlation_limit: float = 0.7
     max_open_trades: int = 3
-    stop_loss_atr_multiplier: float = 2.0
+    stop_loss_atr_multiplier: float = 0.5
     trailing_stop: bool = True
-    trailing_stop_atr_multiplier: float = 1.5
-    # Approval threshold for advanced risk manager (0..1, lower is safer)
-    max_risk_threshold: float = 0.6
+    trailing_stop_atr_multiplier: float = 0.3
 
 
 @dataclass
@@ -57,25 +51,21 @@ class NotificationConfig:
     email_enabled: bool = True
     daily_summary: bool = True
     trade_alerts: bool = True
-    notification_cooldown: int = 300  # seconds
+    notification_cooldown: int = 300
     manual_trade_approval: bool = True
     pre_trade_cooldown_seconds: int = 0
-
-    # Execution toggles
-    auto_execute: bool = False
     live_trade_enabled: bool = False
 
 
 @dataclass
-class AIConfig:
-    """AI analysis settings."""
-    model: str = "gpt-4"
-    max_tokens: int = 1000
-    temperature: float = 0.3
-    analysis_frequency: int = 300  # seconds
-    confidence_threshold: float = 0.7
-    include_news_sentiment: bool = True
-    include_technical_analysis: bool = True
+class TechnicalAnalysisConfig:
+    """Technical analysis settings."""
+    confidence_threshold: float = 0.6
+    signal_strength_threshold: float = 0.03
+    minimum_confidence: float = 0.6
+    risk_reward_ratio_minimum: float = 1.8
+    analysis_frequency: int = 300
+    include_volume_analysis: bool = True
     include_market_context: bool = True
 
 
@@ -102,7 +92,7 @@ class PerformanceConfig:
 class SimulationConfig:
     """Simulation (backtest/forward-test) settings."""
     enabled: bool = False
-    data_source: str = "csv"  # csv | oanda
+    data_source: str = "csv"  # csv | oanda | db
     start_date: str = "2024-01-01T00:00:00Z"
     end_date: str = "2024-02-01T00:00:00Z"
     initial_balance: float = 10000.0
@@ -114,14 +104,20 @@ class SimulationConfig:
 
 
 class Config:
-    """Main configuration class for the trading bot."""
+    """Main configuration class for the technical trading bot."""
     
     def __init__(self, config_path: str = None):
-        print("⚙️ [DEBUG] Initializing configuration...")
+        print("⚙️ [DEBUG] Initializing technical trading configuration...")
         
-        # Load environment variables
+        # Load environment variables from the correct path
         print("⚙️ [DEBUG] Loading environment variables...")
-        load_dotenv()
+        env_path = Path(__file__).parent.parent.parent.parent / "config.env"
+        if env_path.exists():
+            load_dotenv(env_path)
+            print(f"✅ Loaded environment from {env_path}")
+        else:
+            load_dotenv()  # Fallback to default .env
+            print("⚠️ config.env not found, using default .env")
         
         # Load YAML configuration
         print("⚙️ [DEBUG] Loading YAML configuration...")
@@ -134,7 +130,7 @@ class Config:
         self.market_conditions = MarketConditionsConfig()
         self.risk_management = RiskManagementConfig()
         self.notifications = NotificationConfig()
-        self.ai_analysis = AIConfig()
+        self.technical_analysis = TechnicalAnalysisConfig()
         self.data_collection = DataCollectionConfig()
         self.performance = PerformanceConfig()
         self.simulation = SimulationConfig()
@@ -151,6 +147,7 @@ class Config:
         
         # Validate configuration
         self._validate_config()
+        
         # Safety defaults for production readiness
         self.enable_db = False
         self.enable_news = False
@@ -181,7 +178,7 @@ class Config:
                 self.trading.risk_percentage = trading.get('risk_percentage', 2.0)
                 self.trading.max_trades_per_day = trading.get('max_trades_per_day', 10)
                 self.trading.default_timeframe = TimeFrame(trading.get('default_timeframe', 'M5'))
-                self.trading.pairs = trading.get('pairs', ["EUR_USD", "GBP_USD", "USD_JPY"])
+                self.trading.pairs = trading.get('pairs', ['EUR_USD', 'USD_JPY', 'GBP_JPY'])
             
             # Market conditions
             if 'market_conditions' in self._yaml_config:
@@ -211,19 +208,20 @@ class Config:
                 self.notifications.email_enabled = notif.get('email', {}).get('enabled', True)
                 self.notifications.daily_summary = notif.get('email', {}).get('daily_summary', True)
                 self.notifications.trade_alerts = notif.get('email', {}).get('trade_alerts', True)
-                self.notifications.live_trade_enabled = notif.get('live_trade_enabled', False)
+                self.notifications.notification_cooldown = notif.get('notification_cooldown', 300)
+                self.notifications.manual_trade_approval = notif.get('manual_trade_approval', True)
+                self.notifications.pre_trade_cooldown_seconds = notif.get('pre_trade_cooldown_seconds', 0)
             
-            # AI analysis
-            if 'ai_analysis' in self._yaml_config:
-                ai = self._yaml_config['ai_analysis']
-                self.ai_analysis.model = ai.get('model', 'gpt-4')
-                self.ai_analysis.max_tokens = ai.get('max_tokens', 1000)
-                self.ai_analysis.temperature = ai.get('temperature', 0.3)
-                self.ai_analysis.analysis_frequency = ai.get('analysis_frequency', 300)
-                self.ai_analysis.confidence_threshold = ai.get('confidence_threshold', 0.7)
-                self.ai_analysis.include_news_sentiment = ai.get('include_news_sentiment', True)
-                self.ai_analysis.include_technical_analysis = ai.get('include_technical_analysis', True)
-                self.ai_analysis.include_market_context = ai.get('include_market_context', True)
+            # Technical analysis
+            if 'technical_analysis' in self._yaml_config:
+                ta = self._yaml_config['technical_analysis']
+                self.technical_analysis.confidence_threshold = ta.get('confidence_threshold', 0.6)
+                self.technical_analysis.signal_strength_threshold = ta.get('signal_strength_threshold', 0.03)
+                self.technical_analysis.minimum_confidence = ta.get('minimum_confidence', 0.6)
+                self.technical_analysis.risk_reward_ratio_minimum = ta.get('risk_reward_ratio_minimum', 1.8)
+                self.technical_analysis.analysis_frequency = ta.get('analysis_frequency', 300)
+                self.technical_analysis.include_volume_analysis = ta.get('include_volume_analysis', True)
+                self.technical_analysis.include_market_context = ta.get('include_market_context', True)
             
             # Data collection
             if 'data_collection' in self._yaml_config:
@@ -233,20 +231,19 @@ class Config:
                 self.data_collection.store_raw_data = dc.get('store_raw_data', True)
                 self.data_collection.compression = dc.get('compression', True)
                 self.data_collection.backup_frequency = dc.get('backup_frequency', 24)
-                # Optional toggles
-                self.enable_db = dc.get('enable_db', False)
-                self.enable_news = dc.get('enable_news', False)
-
-            # Simulation
+            
+            # Simulation/Backtesting
             if 'simulation' in self._yaml_config:
                 sim = self._yaml_config['simulation']
                 self.simulation.enabled = sim.get('enabled', False)
                 self.simulation.data_source = sim.get('data_source', 'csv')
-                self.simulation.start_date = sim.get('start_date', self.simulation.start_date)
-                self.simulation.end_date = sim.get('end_date', self.simulation.end_date)
+                self.simulation.start_date = sim.get('start_date', '2024-01-01T00:00:00Z')
+                self.simulation.end_date = sim.get('end_date', '2024-02-01T00:00:00Z')
                 self.simulation.initial_balance = sim.get('initial_balance', 10000.0)
                 self.simulation.slippage_pips = sim.get('slippage_pips', 0.1)
                 self.simulation.spread_pips = sim.get('spread_pips', 0.1)
+                self.simulation.commission_rate = sim.get('commission_rate', 0.0001)
+                self.simulation.execution_delay_ms = sim.get('execution_delay_ms', 100)
                 self.simulation.csv_dir = sim.get('csv_dir', 'data/historical')
             
             # Performance
@@ -263,8 +260,7 @@ class Config:
     def _load_from_env(self) -> None:
         """Load configuration values from environment variables."""
         try:
-            # API Keys
-            self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
+            # API Keys (OANDA only - no AI)
             self.oanda_api_key = os.getenv('OANDA_API_KEY', '')
             self.oanda_account_id = os.getenv('OANDA_ACCOUNT_ID', '')
             self.oanda_url = os.getenv('OANDA_URL', 'https://api-fxpractice.oanda.com/v3')
@@ -291,11 +287,9 @@ class Config:
             if os.getenv('DEFAULT_TIMEFRAME'):
                 self.trading.default_timeframe = TimeFrame(os.getenv('DEFAULT_TIMEFRAME'))
             
-            # AI
-            if os.getenv('AI_MODEL'):
-                self.ai_analysis.model = os.getenv('AI_MODEL')
-            if os.getenv('AI_CONFIDENCE_THRESHOLD'):
-                self.ai_analysis.confidence_threshold = float(os.getenv('AI_CONFIDENCE_THRESHOLD'))
+            # Technical Analysis
+            if os.getenv('TECHNICAL_CONFIDENCE_THRESHOLD'):
+                self.technical_analysis.confidence_threshold = float(os.getenv('TECHNICAL_CONFIDENCE_THRESHOLD'))
             
             # Logging
             self.log_level = os.getenv('LOG_LEVEL', 'INFO')
@@ -304,6 +298,7 @@ class Config:
             # Development
             self.debug = os.getenv('DEBUG', 'False').lower() == 'true'
             self.environment = os.getenv('ENVIRONMENT', 'production')
+            
             # Safety toggles
             if os.getenv('ENABLE_DB'):
                 self.enable_db = os.getenv('ENABLE_DB', 'false').lower() == 'true'
@@ -320,18 +315,18 @@ class Config:
         errors = []
         
         # Check required API keys
-        if not self.openai_api_key:
-            errors.append("OPENAI_API_KEY is required")
         if not self.oanda_api_key:
             errors.append("OANDA_API_KEY is required")
         if not self.oanda_account_id:
             errors.append("OANDA_ACCOUNT_ID is required")
         
-        # Check notification settings
-        if self.notifications.telegram_enabled and not self.telegram_bot_token:
-            errors.append("TELEGRAM_BOT_TOKEN is required when Telegram is enabled")
-        if self.notifications.email_enabled and not self.email_username:
-            errors.append("EMAIL_USERNAME is required when email is enabled")
+        # Check notification settings (optional - disable if not configured)
+        if self.notifications.telegram_enabled and (not self.telegram_bot_token or self.telegram_bot_token == 'your_telegram_bot_token_here'):
+            print("⚠️  WARNING: TELEGRAM_BOT_TOKEN not set - disabling Telegram")
+            self.notifications.telegram_enabled = False
+        if self.notifications.email_enabled and (not self.email_username or self.email_username == 'your_email_username_here'):
+            print("⚠️  WARNING: EMAIL_USERNAME not set - disabling email")
+            self.notifications.email_enabled = False
         
         # Check trading settings
         if self.trading.risk_percentage <= 0 or self.trading.risk_percentage > 100:
@@ -339,9 +334,9 @@ class Config:
         if self.trading.max_trades_per_day <= 0:
             errors.append("MAX_TRADES_PER_DAY must be positive")
         
-        # Check AI settings
-        if self.ai_analysis.confidence_threshold < 0 or self.ai_analysis.confidence_threshold > 1:
-            errors.append("AI_CONFIDENCE_THRESHOLD must be between 0 and 1")
+        # Check technical analysis settings
+        if self.technical_analysis.confidence_threshold < 0 or self.technical_analysis.confidence_threshold > 1:
+            errors.append("TECHNICAL_CONFIDENCE_THRESHOLD must be between 0 and 1")
         
         if errors:
             raise ValueError(f"Configuration validation failed:\n" + "\n".join(errors))
@@ -368,29 +363,19 @@ class Config:
         return self.data_collection.update_frequency
     
     @property
-    def ai_confidence_threshold(self) -> float:
-        """Get AI confidence threshold."""
-        return self.ai_analysis.confidence_threshold
+    def technical_confidence_threshold(self) -> float:
+        """Get technical confidence threshold."""
+        return self.technical_analysis.confidence_threshold
     
     @property
-    def ai_model(self) -> str:
-        """Get AI model name."""
-        return self.ai_analysis.model
+    def technical_model(self) -> str:
+        """Get technical analysis model name."""
+        return "technical_analysis"  # No AI model needed
     
     @property
-    def ai_max_tokens(self) -> int:
-        """Get AI max tokens."""
-        return self.ai_analysis.max_tokens
-    
-    @property
-    def ai_temperature(self) -> float:
-        """Get AI temperature."""
-        return self.ai_analysis.temperature
-    
-    @property
-    def ai_analysis_frequency(self) -> int:
-        """Get AI analysis frequency in seconds."""
-        return self.ai_analysis.analysis_frequency
+    def technical_analysis_frequency(self) -> int:
+        """Get technical analysis frequency in seconds."""
+        return self.technical_analysis.analysis_frequency
     
     @property
     def telegram_enabled(self) -> bool:
@@ -460,27 +445,13 @@ class Config:
                 'trade_alerts': self.notifications.trade_alerts,
                 'notification_cooldown': self.notifications.notification_cooldown
             },
-            'ai_analysis': {
-                'model': self.ai_analysis.model,
-                'max_tokens': self.ai_analysis.max_tokens,
-                'temperature': self.ai_analysis.temperature,
-                'analysis_frequency': self.ai_analysis.analysis_frequency,
-                'confidence_threshold': self.ai_analysis.confidence_threshold,
-                'include_news_sentiment': self.ai_analysis.include_news_sentiment,
-                'include_technical_analysis': self.ai_analysis.include_technical_analysis,
-                'include_market_context': self.ai_analysis.include_market_context
-            },
-            'data_collection': {
-                'historical_days': self.data_collection.historical_days,
-                'update_frequency': self.data_collection.update_frequency,
-                'store_raw_data': self.data_collection.store_raw_data,
-                'compression': self.data_collection.compression,
-                'backup_frequency': self.data_collection.backup_frequency
-            },
-            'performance': {
-                'track_metrics': self.performance.track_metrics,
-                'save_trades': self.performance.save_trades,
-                'generate_reports': self.performance.generate_reports,
-                'report_frequency': self.performance.report_frequency
+            'technical_analysis': {
+                'confidence_threshold': self.technical_analysis.confidence_threshold,
+                'signal_strength_threshold': self.technical_analysis.signal_strength_threshold,
+                'minimum_confidence': self.technical_analysis.minimum_confidence,
+                'risk_reward_ratio_minimum': self.technical_analysis.risk_reward_ratio_minimum,
+                'analysis_frequency': self.technical_analysis.analysis_frequency,
+                'include_volume_analysis': self.technical_analysis.include_volume_analysis,
+                'include_market_context': self.technical_analysis.include_market_context
             }
         } 

@@ -28,8 +28,8 @@ class AIAnalysisLayer:
         
         # Initialize OpenAI client
         if config.openai_api_key:
-            self.openai_client = openai.OpenAI(api_key=config.openai_api_key)
-            self.logger.info("OpenAI client initialized successfully")
+                self.openai_client = openai.OpenAI(api_key=config.openai_api_key)
+                self.logger.info("OpenAI client initialized successfully")
         else:
             self.openai_client = None
             self.logger.warning("OpenAI API key not provided - AI analysis disabled")
@@ -591,7 +591,7 @@ Provide your analysis in JSON format:
         """Generate consensus recommendation from multiple timeframes."""
         if not recommendations:
             return None
-        
+    
         # Count signals
         signal_counts = {}
         total_confidence = 0.0

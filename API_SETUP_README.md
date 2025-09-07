@@ -18,11 +18,11 @@ You're getting "Insufficient authorization to perform request" errors when tryin
 3. **Generate a new API key**
    - Click "Generate API Key"
    - Give it a descriptive name (e.g., "Trading Bot")
-   - Copy the API key (it will look like: `a003d683522416767b6aa4465f666f6b-7eda7211ed563893626f489acf155f06`)
+   - Copy the API key (it will look like: `vjyvjy683522416767b6aa4465f666f6b-7eda7211ed563893626f489acf155f06`)
 
 4. **Get your Account ID**
    - In the same API Access section, you'll see your Account ID
-   - It will look like: `101-001-23541205-001`
+   - It will look like: `897-001-23541205-098`
 
 ### Step 2: Configure Your Credentials
 
@@ -62,7 +62,7 @@ You should see output like:
 ```
 🔍 Testing OANDA API credentials...
 API URL: https://api-fxpractice.oanda.com/v3
-Account ID: 101-001-23541205-001
+Account ID: 887-001-23541205-876
 API Key: a003d6835...acf155f06
 --------------------------------------------------
 Testing account access...

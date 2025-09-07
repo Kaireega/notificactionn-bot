@@ -37,13 +37,17 @@ class TechnicalAnalysisLayer:
         self._last_analysis_time: Dict[str, datetime] = {}
         self._analysis_cache: Dict[str, TradeRecommendation] = {}
         
-        # Technical thresholds
-        self.rsi_oversold = 30
-        self.rsi_overbought = 70
-        self.macd_signal_threshold = 0.0001
-        self.bollinger_threshold = 0.1
+        # Technical thresholds - MUCH STRICTER TO REDUCE EXCESSIVE TRADING
+        self.rsi_oversold = 20  # Changed from 30 to 20 - more extreme
+        self.rsi_overbought = 80  # Changed from 70 to 80 - more extreme
+        self.macd_signal_threshold = 0.0005  # Changed from 0.0001 to 0.0005 - stronger signal needed
+        self.bollinger_threshold = 0.05  # Changed from 0.1 to 0.05 - closer to bands required
         self.atr_multiplier = 2.0
-        self.min_signal_strength = 0.5  # Minimum signal strength for trade
+        self.min_signal_strength = 0.75  # Changed from 0.5 to 0.75 - much higher minimum
+        
+        # Trade cooldown tracking to prevent excessive trading
+        self._last_trade_time: Dict[str, datetime] = {}
+        self.trade_cooldown_minutes = 30  # 30-minute cooldown between trades per pair
         
     async def analyze_multiple_timeframes(
         self, 
@@ -54,6 +58,16 @@ class TechnicalAnalysisLayer:
         """Analyze multiple timeframes and generate consensus recommendation."""
         
         try:
+            # CHECK TRADE COOLDOWN - Prevent excessive trading
+            current_time = datetime.now(timezone.utc)
+            if pair in self._last_trade_time:
+                time_since_last_trade = current_time - self._last_trade_time[pair]
+                cooldown_remaining = timedelta(minutes=self.trade_cooldown_minutes) - time_since_last_trade
+                
+                if cooldown_remaining.total_seconds() > 0:
+                    self.logger.debug(f"⏰ {pair}: Trade cooldown active - {cooldown_remaining.total_seconds()/60:.1f} minutes remaining")
+                    return None, None
+            
             # Calculate technical indicators for all timeframes
             technical_indicators = {}
             
@@ -76,6 +90,19 @@ class TechnicalAnalysisLayer:
                 # Fallback to first available timeframe
                 primary_timeframe = list(technical_indicators.keys())[0]
                 primary_indicators = technical_indicators[primary_timeframe]
+            
+            # CHECK MARKET CONDITIONS - Only trade in favorable conditions
+            if market_context and market_context.condition:
+                unfavorable_conditions = {MarketCondition.RANGING, MarketCondition.UNKNOWN}
+                if market_context.condition in unfavorable_conditions:
+                    self.logger.debug(f"❌ {pair}: Unfavorable market condition: {market_context.condition.value}")
+                    return None, primary_indicators
+            
+            # ADDITIONAL VOLATILITY CHECK - Require higher volatility for trading
+            if primary_indicators and primary_indicators.atr:
+                if primary_indicators.atr < 0.003:  # Much higher volatility requirement
+                    self.logger.debug(f"❌ {pair}: Insufficient volatility (ATR: {primary_indicators.atr:.5f}, need 0.003+)")
+                    return None, primary_indicators
             
             # Analyze technical signals
             signal_analysis = self._analyze_technical_signals(primary_indicators, market_context)
@@ -106,10 +133,11 @@ class TechnicalAnalysisLayer:
                            f"Confidence={recommendation.confidence:.2f}, "
                            f"RR={recommendation.risk_reward_ratio:.2f}")
             
-            # Update cache
+            # Update cache and trade cooldown
             cache_key = f"{pair}_{primary_timeframe.value}"
             self._analysis_cache[cache_key] = recommendation
-            self._last_analysis_time[pair] = datetime.now(timezone.utc)
+            self._last_analysis_time[pair] = current_time
+            self._last_trade_time[pair] = current_time  # Start cooldown period
             
             return recommendation, primary_indicators
             
@@ -118,16 +146,19 @@ class TechnicalAnalysisLayer:
             return None, None
     
     def _analyze_technical_signals(self, indicators: TechnicalIndicators, market_context: MarketContext) -> Dict[str, Any]:
-        """Analyze technical indicators to generate trading signals."""
+        """Analyze technical indicators with improved signal confluence logic."""
         
         signals = {
             'rsi_signal': None,
             'macd_signal': None,
             'bollinger_signal': None,
             'ema_signal': None,
+            'atr_signal': None,
+            'volume_signal': None,
             'overall_signal': None,
             'has_signal': False,
             'signal_strength': 0.0,
+            'confluence_score': 0.0,
             'reasoning': []
         }
         
@@ -172,42 +203,143 @@ class TechnicalAnalysisLayer:
             if (indicators.ema_fast is not None and indicators.ema_slow is not None):
                 if indicators.ema_fast > indicators.ema_slow:
                     signals['ema_signal'] = TradeSignal.BUY
-                    signals['reasoning'].append("Fast EMA above slow EMA")
+                    signals['reasoning'].append("EMA bullish alignment")
                 else:
                     signals['ema_signal'] = TradeSignal.SELL
-                    signals['reasoning'].append("Fast EMA below slow EMA")
+                    signals['reasoning'].append("EMA bearish alignment")
             
-            # Determine overall signal
-            buy_signals = sum(1 for signal in [signals['rsi_signal'], signals['macd_signal'], 
-                                             signals['bollinger_signal'], signals['ema_signal']] 
-                            if signal == TradeSignal.BUY)
-            sell_signals = sum(1 for signal in [signals['rsi_signal'], signals['macd_signal'], 
-                                              signals['bollinger_signal'], signals['ema_signal']] 
-                             if signal == TradeSignal.SELL)
+            # ATR Analysis (volatility-based signal) - STRICTER VOLATILITY REQUIREMENT
+            if indicators.atr is not None:
+                # Use ATR for volatility confirmation
+                # High ATR suggests good volatility for trading
+                if indicators.atr > 0.002:  # Changed from 0.001 to 0.002 - higher volatility required
+                    # ATR doesn't give direction, just confirms volatility is sufficient
+                    signals['atr_signal'] = 'VOLATILE'
+                    signals['reasoning'].append(f"Sufficient volatility (ATR: {indicators.atr:.5f})")
             
-            if buy_signals > sell_signals and buy_signals >= 1:  # More lenient: only need 1 signal
-                signals['overall_signal'] = TradeSignal.BUY
-                signals['has_signal'] = True
-                signals['signal_strength'] = buy_signals / 4.0
-            elif sell_signals > buy_signals and sell_signals >= 1:  # More lenient: only need 1 signal
-                signals['overall_signal'] = TradeSignal.SELL
-                signals['has_signal'] = True
-                signals['signal_strength'] = sell_signals / 4.0
-            elif buy_signals == sell_signals and buy_signals >= 1:  # Handle tie cases
-                # In case of tie, prefer the stronger signal or use RSI as tiebreaker
-                if signals['rsi_signal'] == TradeSignal.BUY:
-                    signals['overall_signal'] = TradeSignal.BUY
-                    signals['has_signal'] = True
-                    signals['signal_strength'] = buy_signals / 4.0
-                elif signals['rsi_signal'] == TradeSignal.SELL:
-                    signals['overall_signal'] = TradeSignal.SELL
-                    signals['has_signal'] = True
-                    signals['signal_strength'] = sell_signals / 4.0
+            # Volume Analysis (if available)
+            # This would be implemented if volume data is available
+            signals['volume_signal'] = 'NEUTRAL'  # Placeholder
+            
+            # IMPROVED SIGNAL CONFLUENCE LOGIC
+            signals = self._calculate_signal_confluence(signals)
+            
+            return signals
             
         except Exception as e:
-            self.logger.error(f"Error analyzing technical signals: {e}")
+            self.logger.error(f"Error in technical signal analysis: {e}")
+            return signals
+    
+    def _calculate_signal_confluence(self, signals: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate signal confluence and overall signal strength."""
+        
+        # Count signals by direction
+        buy_signals = []
+        sell_signals = []
+        
+        for signal_type, signal in signals.items():
+            if signal_type.endswith('_signal') and signal is not None:
+                if signal == TradeSignal.BUY:
+                    buy_signals.append(signal_type)
+                elif signal == TradeSignal.SELL:
+                    sell_signals.append(signal_type)
+        
+        # Calculate confluence score
+        total_signals = len(buy_signals) + len(sell_signals)
+        max_signals = 5  # RSI, MACD, Bollinger, EMA, ATR
+        
+        if total_signals == 0:
+            signals['confluence_score'] = 0.0
+            signals['has_signal'] = False
+            return signals
+        
+        # Determine overall signal direction
+        if len(buy_signals) > len(sell_signals):
+            signals['overall_signal'] = TradeSignal.BUY
+            dominant_signals = buy_signals
+            signal_count = len(buy_signals)
+        elif len(sell_signals) > len(buy_signals):
+            signals['overall_signal'] = TradeSignal.SELL
+            dominant_signals = sell_signals
+            signal_count = len(sell_signals)
+        else:
+            # Equal signals - no clear direction
+            signals['overall_signal'] = None
+            signals['confluence_score'] = 0.0
+            signals['has_signal'] = False
+            return signals
+        
+        # Calculate confluence score (0.0 to 1.0)
+        signals['confluence_score'] = signal_count / max_signals
+        
+        # MUCH STRICTER CONFLUENCE REQUIREMENTS TO REDUCE EXCESSIVE TRADING
+        min_signals_required = 3  # Changed from 2 to 3 - need at least 3 agreeing signals
+        min_confluence_score = 0.6  # Changed from 0.4 to 0.6 - need 60% confluence
+        
+        # Additional quality checks
+        has_strong_signal = False
+        if 'rsi_signal' in dominant_signals:
+            # RSI signals are strong when VERY extreme (updated to match new thresholds)
+            rsi_value = signals.get('rsi', 50)
+            if rsi_value < 20 or rsi_value > 80:  # Much more extreme than before
+                has_strong_signal = True
+        
+        if 'macd_signal' in dominant_signals:
+            # MACD signals are strong when clear crossover
+            has_strong_signal = True
+        
+        if signal_count >= min_signals_required and signals['confluence_score'] >= min_confluence_score and has_strong_signal:
+            signals['has_signal'] = True
+            
+            # Calculate signal strength based on confluence and market conditions
+            signals['signal_strength'] = self._calculate_signal_strength(signals, dominant_signals)
+            
+            # Add confluence reasoning
+            signals['reasoning'].append(f"Strong signal confluence: {signal_count}/{max_signals} indicators agree ({signals['confluence_score']:.1%})")
+        else:
+            signals['has_signal'] = False
+            signals['signal_strength'] = 0.0
+            if signal_count < min_signals_required:
+                signals['reasoning'].append(f"Insufficient signals: {signal_count}, need {min_signals_required}")
+            elif signals['confluence_score'] < min_confluence_score:
+                signals['reasoning'].append(f"Low confluence: {signals['confluence_score']:.1%}, need {min_confluence_score:.1%}")
+            else:
+                signals['reasoning'].append("No strong signal detected")
         
         return signals
+    
+    def _calculate_signal_strength(self, signals: Dict[str, Any], dominant_signals: List[str]) -> float:
+        """Calculate signal strength based on confluence and signal quality."""
+        
+        base_strength = signals['confluence_score']
+        
+        # Boost strength based on signal quality
+        strength_boost = 0.0
+        
+        # RSI signals are strong when extreme
+        if 'rsi_signal' in dominant_signals:
+            strength_boost += 0.1
+        
+        # MACD signals are strong when clear crossover
+        if 'macd_signal' in dominant_signals:
+            strength_boost += 0.15
+        
+        # Bollinger signals are strong when price is at bands
+        if 'bollinger_signal' in dominant_signals:
+            strength_boost += 0.1
+        
+        # EMA signals are strong when clear alignment
+        if 'ema_signal' in dominant_signals:
+            strength_boost += 0.1
+        
+        # ATR confirmation adds strength
+        if signals.get('atr_signal') == 'VOLATILE':
+            strength_boost += 0.05
+        
+        # Cap strength at 1.0
+        final_strength = min(1.0, base_strength + strength_boost)
+        
+        return final_strength
     
     def _calculate_technical_confidence(self, signal_analysis: Dict[str, Any], 
                                       technical_indicators: Dict[TimeFrame, TechnicalIndicators]) -> float:
@@ -261,10 +393,10 @@ class TechnicalAnalysisLayer:
         
         if signal_analysis['overall_signal'] == TradeSignal.BUY:
             stop_loss = current_price - atr_distance
-            take_profit = current_price + (atr_distance * Decimal('2'))  # 1:2 risk-reward
+            take_profit = current_price + (atr_distance * Decimal('1.5'))  # 1:3 risk-reward
         else:
             stop_loss = current_price + atr_distance
-            take_profit = current_price - (atr_distance * Decimal('2'))  # 1:2 risk-reward
+            take_profit = current_price - (atr_distance * Decimal('1.5'))  # 1:3 risk-reward
         
         # Calculate risk-reward ratio
         risk = abs(current_price - stop_loss)

@@ -40,11 +40,11 @@ class TechnicalDecisionLayer:
         # Performance metrics
         self._performance_metrics = PerformanceMetrics()
         
-        # Technical analysis thresholds
-        self.rsi_oversold = 30
-        self.rsi_overbought = 70
-        self.macd_signal_threshold = 0.0001  # Minimum MACD signal strength
-        self.bollinger_threshold = 0.1  # Distance from Bollinger bands
+        # Technical analysis thresholds - STRICTER TO REDUCE EXCESSIVE TRADING
+        self.rsi_oversold = 20  # Changed from 30 to 20 - more extreme
+        self.rsi_overbought = 80  # Changed from 70 to 80 - more extreme
+        self.macd_signal_threshold = 0.0005  # Changed from 0.0001 to 0.0005 - stronger signal needed
+        self.bollinger_threshold = 0.05  # Changed from 0.1 to 0.05 - closer to bands required
         self.atr_multiplier = 2.0  # ATR multiplier for stop loss
         
     async def make_technical_decision(
@@ -77,8 +77,8 @@ class TechnicalDecisionLayer:
             confidence = self._calculate_technical_confidence(signal_analysis, technical_indicators)
             
             # Check if confidence meets threshold
-            if confidence < self.config.ai_confidence_threshold:
-                self.logger.info(f"❌ {pair}: Technical confidence {confidence:.2f} below threshold {self.config.ai_confidence_threshold}")
+            if confidence < self.config.technical_confidence_threshold:
+                self.logger.info(f"❌ {pair}: Technical confidence {confidence:.2f} below threshold {self.config.technical_confidence_threshold}")
                 return None
             
             # Create trade recommendation
@@ -129,7 +129,7 @@ class TechnicalDecisionLayer:
                     technical_indicators=technical_indicators,
                     candles_by_timeframe=candles_by_timeframe or {},
                     ai_outputs={},  # Empty since no AI analysis
-                    multi_timeframe_analysis=self._create_multi_timeframe_analysis(technical_indicators),
+                    multi_timeframe_analysis={},  # Simplified for now
                     risk_assessment=risk_assessment,
                     raw_data={'technical_analysis': signal_analysis}
                 )
@@ -280,10 +280,10 @@ class TechnicalDecisionLayer:
         
         if signal_analysis['overall_signal'] == TradeSignal.BUY:
             stop_loss = current_price - atr_distance
-            take_profit = current_price + (atr_distance * Decimal('2'))  # 1:2 risk-reward
+            take_profit = current_price + (atr_distance * Decimal('1.5'))  # 1:3 risk-rewardrade can you tell me why im getting go many trades in such a small period of time
         else:
             stop_loss = current_price + atr_distance
-            take_profit = current_price - (atr_distance * Decimal('2'))  # 1:2 risk-reward
+            take_profit = current_price - (atr_distance * Decimal('1.5'))  # 1:3 risk-reward
         
         # Calculate risk-reward ratio
         risk = abs(current_price - stop_loss)
@@ -384,3 +384,36 @@ class TechnicalDecisionLayer:
             self.logger.info("Technical decision layer closed")
         except Exception as e:
             self.logger.error(f"Error closing technical decision layer: {e}")
+
+    def _calculate_dynamic_atr_multiplier(self, timeframe: TimeFrame, market_condition: MarketCondition) -> float:
+        """Calculate dynamic ATR multiplier based on timeframe and market condition."""
+        
+        # Base multipliers by timeframe (tighter for shorter timeframes)
+        base_multipliers = {
+            TimeFrame.M1: 0.3,
+            TimeFrame.M5: 0.5,
+            TimeFrame.M15: 0.7,
+            TimeFrame.M30: 0.8,
+            TimeFrame.H1: 1.0,
+            TimeFrame.H4: 1.2,
+            TimeFrame.D1: 1.5
+        }
+        
+        base_multiplier = base_multipliers.get(timeframe, 0.5)
+        
+        # Adjust based on market condition
+        condition_adjustments = {
+            MarketCondition.TRENDING: 0.8,      # Tighter stops in trending markets
+            MarketCondition.RANGING: 0.6,       # Even tighter in ranging markets
+            MarketCondition.VOLATILE: 1.2,      # Wider stops in volatile markets
+            MarketCondition.BREAKOUT: 0.7,      # Moderate stops for breakouts
+            MarketCondition.CONSOLIDATION: 0.5, # Tight stops in consolidation
+            MarketCondition.REVERSAL: 0.9       # Moderate stops for reversals
+        }
+        
+        adjustment = condition_adjustments.get(market_condition, 1.0)
+        
+        # Cap the multiplier to prevent overly wide stops
+        final_multiplier = min(base_multiplier * adjustment, 1.5)
+        
+        return final_multiplier

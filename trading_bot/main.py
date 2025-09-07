@@ -10,7 +10,7 @@ import sys
 import traceback
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Add the project root to the path for imports
 root_dir = Path(__file__).parent.parent

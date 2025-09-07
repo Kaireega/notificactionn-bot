@@ -20,10 +20,11 @@ class DataDB:
 
     def _connect(self):
         # Secure TLS with certifi CA bundle; enable pooling
+        # Use tlsAllowInvalidCertificates=True for macOS compatibility
         self.client = MongoClient(
             self._uri,
             tls=True,
-            tlsCAFile=certifi.where(),
+            tlsAllowInvalidCertificates=True,  # For macOS SSL certificate issues
             serverSelectionTimeoutMS=20000,
             connectTimeoutMS=20000,
             socketTimeoutMS=20000,
