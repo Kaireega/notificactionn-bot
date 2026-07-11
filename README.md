@@ -54,7 +54,7 @@ This forex trading bot combines traditional technical analysis with AI-powered d
 
 ```
 📁 Project Structure
-├── 🤖 market_adaptive_bot/          # Main trading bot
+├── 🤖 trading_bot/          # Main trading bot
 │   ├── 📊 src/                      # Source code
 │   │   ├── 🧠 ai/                   # AI analysis layer
 │   │   ├── 📈 data/                 # Data collection
@@ -92,7 +92,7 @@ pip install -r requirements.txt
 
 ```bash
 # Copy environment template
-cp market_adaptive_bot/env_example.txt config.env
+cp trading_bot/env_example.txt config.env
 
 # Edit configuration
 nano config.env
@@ -123,17 +123,17 @@ EMAIL_PASSWORD=your_app_password
 
 ```bash
 # Start the trading bot (from project root)
-python run_bot.py
+python start_bot.py
 
-# Or alternatively, from the market_adaptive_bot directory
-cd market_adaptive_bot
+# Or directly from the trading_bot directory
+cd trading_bot
 python main.py
 ```
 
 ## ⚙️ Configuration
 
 ### **Trading Pairs**
-Configure in `market_adaptive_bot/src/utils/config.py`:
+Configure in `trading_bot/src/utils/config.py`:
 ```python
 trading_pairs = ["EUR_USD", "USD_JPY", "GBP_JPY"]
 ```
@@ -191,7 +191,7 @@ python run_comprehensive_tests.py
 python test_api_credentials.py
 
 # Test enhanced recorder
-cd market_adaptive_bot
+cd trading_bot
 python test_enhanced_recorder.py
 
 # Test notifications
@@ -210,22 +210,22 @@ python tests/test_performance.py
 - [Testing Guide](TESTING_README.md) - Comprehensive testing instructions
 
 ### **Component Documentation**
-- [Enhanced Recorder](market_adaptive_bot/ENHANCED_RECORDER_README.md) - Trade recording system
+- [Enhanced Recorder](trading_bot/ENHANCED_RECORDER_README.md) - Trade recording system
 - [Integration Analysis](integration_analysis.md) - System integration details
 
 ### **Configuration Files**
 - `config.env` - Environment variables
-- `market_adaptive_bot/config/trading_config.yaml` - Trading parameters
+- `trading_bot/config/trading_config.yaml` - Trading parameters
 
 ## 🔄 Usage Examples
 
 ### **Start Trading Bot**
 ```bash
 # From project root (recommended)
-python run_bot.py
+python start_bot.py
 
-# Or from market_adaptive_bot directory
-cd market_adaptive_bot
+# Or from trading_bot directory
+cd trading_bot
 python main.py
 ```
 
@@ -247,8 +247,8 @@ python run_api_tests.py
 ## 📊 Monitoring
 
 ### **Logs**
-- Trading logs: `market_adaptive_bot/logs/trading_bot.log`
-- Trade records: `market_adaptive_bot/logs/trades/complete_trading_records.xlsx`
+- Trading logs: `trading_bot/logs/trading_bot.log`
+- Trade records: `trading_bot/logs/trades/complete_trading_records.xlsx`
 
 ### **Notifications**
 - Telegram: Real-time trade alerts
@@ -292,7 +292,7 @@ This trading bot is for educational and research purposes. Trading forex involve
 ## 📞 Support
 
 For issues and questions:
-1. Check the logs in `market_adaptive_bot/logs/`
+1. Check the logs in `trading_bot/logs/`
 2. Review the configuration files
 3. Run the test scripts
 4. Check the documentation

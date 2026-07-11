@@ -9,10 +9,10 @@ from pathlib import Path
 def main():
     """Run the bot from the correct directory."""
     project_root = Path(__file__).parent
-    bot_dir = project_root / "market_adaptive_bot"
+    bot_dir = project_root / "trading_bot"
     
     if not bot_dir.exists():
-        print("❌ market_adaptive_bot directory not found!")
+        print("❌ trading_bot directory not found!")
         sys.exit(1)
     
     # Change to the bot directory
